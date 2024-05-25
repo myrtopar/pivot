@@ -66,7 +66,7 @@ while True:
             exploit_proc = subprocess.Popen(exploit_command, shell=True)
             retcode = exploit_proc.communicate()
             # Use wait() when you simply need to wait for the process to finish without interacting with its input/output streams.
-            if(retcode != 139):
+            if(exploit_proc.returncode != 139):
                 break
             i += 1
 

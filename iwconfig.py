@@ -9,7 +9,7 @@ kernel_dmesg = subprocess.Popen(['sysctl', 'kernel.dmesg_restrict'], stdout=subp
 kernel_output, _ = kernel_dmesg.communicate()
 kernel_res = kernel_output.decode().split(" ")
 if kernel_res[2] == 1:
-    sys.exit()
+    sys.exit(1)
 
 
 buffer = b"A"

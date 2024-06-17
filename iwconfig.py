@@ -8,7 +8,8 @@ import sys
 kernel_dmesg = subprocess.Popen(['sysctl', 'kernel.dmesg_restrict'], stdout=subprocess.PIPE)
 kernel_output, _ = kernel_dmesg.communicate()
 kernel_res = kernel_output.decode().split(" ")
-if kernel_res[2] == 1:
+if '1' in str(kernel_res[2]):  
+    print("kernel.dmesg_restrict enabled")
     sys.exit(1)
 
 buffer = b"A"

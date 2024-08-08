@@ -12,3 +12,12 @@ issues:
 2. although the exploit works just fine, strace does not trace any execve system calls for some reason
 3. problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected.
 4. is there a way to know where the program gets its input from?
+5. how to decide what shellcode is suitable for each exploit?
+
+
+
+what to change:
+1. get the file as an argument (change it to a dockerfile input later)
+2. define a test case generator method (next_test_case)
+3. define the shellcode somewhere else
+4. change the exploit command

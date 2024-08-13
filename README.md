@@ -17,7 +17,9 @@ issues:
 
 
 what to change:
-1. get the file as an argument (change it to a dockerfile input later)
+1. find a way to make crash testing faster, it is too slow with `docker exec`
 2. define a test case generator method (next_test_case)
 3. define the shellcode somewhere else
 4. change the exploit command
+
+

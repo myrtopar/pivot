@@ -55,7 +55,6 @@ def main():
     y
     """
     output, _ = gdb_process.communicate(commands)
-    print(output)
 
     middle = stack_middle_address(output)
 

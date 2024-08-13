@@ -1,4 +1,4 @@
-# autoexploit
+## autoexploit
 Iwconfig.py exploits the program iwconfig and provides a root shell. Must disable kernel.dmesg_restrict
 docker run --rm --privileged -v `pwd`:/host -it ethan42/iwconfig
 
@@ -14,6 +14,10 @@ issues:
 4. is there a way to know where the program gets its input from?
 5. how to decide what shellcode is suitable for each exploit?
 
+# MEGA ISSUE: 
+how to connect the slave side of the pty to the vuln command during the brute force attack? 
+Docker exec prevents me from having direct access to vuln input and output file descriptors ect
+Also docker exec has a very slow performance in repetitive procedures like in test case crashing or brute force bof attacking!!!
 
 
 what to change:

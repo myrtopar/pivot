@@ -45,6 +45,26 @@ def stack_middle_address():
 
     return middle
 
+def test_crash(input):
+        
+        # vuln_command = f"docker exec -i vuln_container echo -n {overflow} | ./vuln"
+        # vuln_command = (
+        # f"docker exec -i vuln_container bash -c "
+        # f"'echo -n {overflow} | ./vuln; echo $? > /tmp/vuln_exit_code'"
+        # )
+
+        vuln_command = (
+            f"echo -n '{input}' | docker exec -i vuln_container ./vuln; "
+            f"echo $?"
+        )
+        vuln_proc = subprocess.Popen(vuln_command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        output, _ = vuln_proc.communicate()
+        parts = output.strip().split('\n')
+        return int(parts[-1].strip())
+        
+
+
 def main():
 
     docker_image = sys.argv[1]
@@ -60,31 +80,16 @@ def main():
     subprocess.run(trash_command, check=True, text=True, capture_output=True)
 
     middle = stack_middle_address()
-    print(hex(middle))
 
-    overflow = "A"
+    test_case = "A"           #replace with a test generating method
     while True:
-        # vuln_command = f"docker exec -i vuln_container echo -n {overflow} | ./vuln"
-        # vuln_command = (
-        # f"docker exec -i vuln_container bash -c "
-        # f"'echo -n {overflow} | ./vuln; echo $? > /tmp/vuln_exit_code'"
-        # )
-        vuln_command = (
-            f"echo -n '{overflow}' | docker exec -i vuln_container ./vuln; "
-            f"echo $?"
-        )
-        vuln_proc = subprocess.Popen(vuln_command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-        output, _ = vuln_proc.communicate()
-        parts = output.strip().split('\n')
-        exit_code = int(parts[-1].strip())
-
+        exit_code = test_crash(test_case)
         if exit_code == 139:
             print("segmentation fault")
             break
 
         else:
-            overflow += "A"
+            test_case += "A"
 
 
 

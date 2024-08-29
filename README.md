@@ -13,8 +13,7 @@ issues:
 3. problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected.
 4. Is there a way to know where the program gets its input from?
 5. How to decide what shellcode is suitable for each exploit?
-
-**6. What is an indicator that an exploit has been successfully executed? I assume that "0 in rlist" is a sign. Is this sufficient to explicitly state that the shell has started functioning properly?**
+6. **What is an indicator that an exploit has been successfully executed? I assume that "0 in rlist" is a sign. Is this sufficient to explicitly state that the shell has started functioning properly?**
 
 # MEGA ISSUE: 
 how to connect the slave side of the pty to the vuln command during the brute force attack? 

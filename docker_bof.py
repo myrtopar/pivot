@@ -100,6 +100,10 @@ def construct_payload(test_case: str):
 
 def main():
 
+    if len(sys.argv) != 2:
+        print("No docker image provided")
+        sys.exit(1) 
+
     docker_image = sys.argv[1]
     #run docker container from input
     docker_command = f"docker run --rm --privileged --name vuln_container -dit {docker_image}"
@@ -110,13 +114,14 @@ def main():
     test_case = "A"           #replace with a test generating method
     while True:
         exit_code = test_crash(test_case)
+        print(exit_code)
 
         if exit_code == 139:
             print("segmentation fault")
             construct_payload(test_case)
 
-            while True:
-                break
+            # while True:
+            #     break
             break
 
         else:

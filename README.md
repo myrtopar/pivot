@@ -14,6 +14,7 @@ issues:
 4. Is there a way to know where the program gets its input from?
 5. How to decide what shellcode is suitable for each exploit?
 6. **What is an indicator that an exploit has been successfully executed? I assume that "0 in rlist" is a sign. Is this sufficient to explicitly state that the shell has started functioning properly?**
+7. What if a program is given a payload but it does not produce any output itself? How will I identify the crash? Maybe try strace again.
 
 # MEGA ISSUE: 
 how to connect the slave side of the pty to the vuln command during the brute force attack? 

@@ -104,6 +104,7 @@ def main():
     middle = stack_middle_address(output)
 
     #find where the buffer overflows
+    #must change the test generator
     overflow = b'A'
     while True:
         vuln_proc = subprocess.Popen([f"./{vuln}"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

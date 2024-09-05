@@ -10,11 +10,12 @@ The program vuln takes input from standard input so I must put a hyphen in the c
 issues:
 1. expecting  a sigsegv signal but not getting it
 2. although the exploit works just fine, strace does not trace any execve system calls for some reason
-3. problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected.
+3. problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected. Same problem occurs with the byte pattern from pwn-> Why does gdb indicate that eip is at the bytes 137-140 when in practice i have to add 4 additional bytes for the payload to work?
 4. Is there a way to know where the program gets its input from?
 5. How to decide what shellcode is suitable for each exploit?
 6. **What is an indicator that an exploit has been successfully executed? I assume that "0 in rlist" is a sign. Is this sufficient to explicitly state that the shell has started functioning properly?**
 7. What if a program is given a payload but it does not produce any output itself? How will I identify the crash? Maybe try strace again.
+8. Must change the gdb commands (breakpoint placement)
 
 # MEGA ISSUE: 
 how to connect the slave side of the pty to the vuln command during the brute force attack? 

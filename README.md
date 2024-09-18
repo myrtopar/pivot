@@ -6,7 +6,7 @@ bof1.py exploits the program bof1 and spawns a /bin/sh
 docker run --rm --privileged -v `pwd`:/app -it  vuln-image
 
 
-issues:
+issues:<br />
 ~~1. expecting  a sigsegv signal but not getting it~~ <br />
 ~~2. although the exploit works just fine, strace does not trace any execve system calls for some reason~~<br />
 **_3. problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected. Same problem occurs with the byte pattern from pwn-> Why does gdb indicate that eip is at the bytes 137-140 when in practice i have to add 4 additional bytes for the payload to work?_**<br />

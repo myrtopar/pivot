@@ -92,8 +92,8 @@ to do:<br />
 2. fix the log truncating issue<br />
 3. add iwconfig in the container<br />
 4. create separate handling for stdin and separate for argument inputs<br />
-5. create test that _i guess_ will look for an execve???
-6. make a workflow with that test
+5. create test that _i guess_ will look for an execve??? <br />
+6. make a workflow with that test<br />
 
 
 

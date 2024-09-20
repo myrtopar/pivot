@@ -1,4 +1,4 @@
-## autoexploit
+## autoexploit 💖
 Iwconfig.py exploits the program iwconfig and provides a root shell. Must disable kernel.dmesg_restrict
 docker run --rm --privileged -v `pwd`:/host -it ethan42/iwconfig
 
@@ -87,6 +87,13 @@ So if I ignore the first line of the log here, I see that it starts with the sec
 **Is it a problem of timing between the actual events of the crash and the strace logs, a race condition or something of that matter?** <br />
 ### race condition: script editing strace.log vs strace adding logs simultaneously
 
+to do:<br />
+1. figure out what is going on with the ebp/eip issue in the payload<br />
+2. fix the log truncating issue<br />
+3. add iwconfig in the container<br />
+4. create separate handling for stdin and separate for argument inputs<br />
+5. create test that _i guess_ will look for an execve???
+6. make a workflow with that test
 
 
 

@@ -14,7 +14,7 @@ def cleanup(exit_code: int):
 
     os.remove("trash")
     os.remove("vuln_payload")
-    # os.remove("strace.log")
+    os.remove("strace.log")
     sys.exit(exit_code)
 
 
@@ -167,6 +167,10 @@ def attach_strace():
         )
 
 
+    while not os.path.isfile('strace.log'):
+        time.sleep(0.1)
+
+
 def detect_crash(pid: int):
     pid_str = str(pid)
 
@@ -235,7 +239,7 @@ def main():
     exploit_command = f"cat vuln_payload - | ./{vuln} " + " ".join(["`cat trash`"] * 15)
     i = 0
     while True:
-        # print(f"i: {i}")
+        print(f"i: {i}")
         i += 1
 
         master_fd, slave_fd = pty.openpty()

@@ -5,6 +5,8 @@ import re
 import sys
 import pty
 import select
+import fcntl
+
 from pwn import *
 
 log_file_path = 'strace.log'
@@ -45,7 +47,6 @@ def generate_test():
 
 
 def locate_ra(pattern):
-    print(pattern)
     gdb_proc = subprocess.Popen(
         [f"gdb vuln"], 
         stdin=subprocess.PIPE, 
@@ -65,7 +66,6 @@ def locate_ra(pattern):
 
     while True:
         output = gdb_proc.stdout.readline()
-        print(output)
         if "Program received signal SIGSEGV" in output:
             break
 
@@ -187,7 +187,8 @@ def detect_crash(pid: int):
             lines = log_file.readlines()
 
             for line in lines:
-                print(line)
+                # print(line)
+
                 if pattern.search(line):
                     return True
 
@@ -209,7 +210,6 @@ def detect_execve():
     try:
         with open(log_file_path, 'r') as log_file:
             lines = log_file.readlines()
-
             for line in lines:
                 if pattern.search(line):
                     return True
@@ -301,9 +301,17 @@ def main():
                     output = os.read(master_fd, 100000)
                     if output:
                         if detect_crash(exploit_proc.pid) or i == 1:    #must find the bug related to the first run and the missing logs!
-                            with open(log_file_path, 'w') as log_file:
-                                log_file.truncate(0)                    #empty the log file from the logs of the previous attempts to minimize the load of the linear search
-                                log_file.seek(0)
+                            with open(log_file_path, 'a+') as log_file:
+                                fcntl.flock(log_file, fcntl.LOCK_EX)
+                                try:
+                                    # print(f"fp position before truncating: {log_file.tell()}")
+                                    # print(f"file size: {os.path.getsize(log_file_path)}")
+                                    log_file.truncate(0)                    #empty the log file from the logs of the previous attempts to minimize the load of the linear search
+                                    log_file.seek(0)
+                                    # print(f"fp position after truncating: {log_file.tell()}")
+
+                                finally:
+                                    fcntl.flock(log_file, fcntl.LOCK_UN)
                             break
                     else:
                         break

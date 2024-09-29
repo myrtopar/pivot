@@ -7,20 +7,10 @@ docker run --rm --privileged -v `pwd`:/app -it  vuln-image
 
 
 issues:<br />
-~~1. expecting  a sigsegv signal but not getting it~~ <br />
-~~2. although the exploit works just fine, strace does not trace any execve system calls for some reason~~<br />
-**_3. problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected. Same problem occurs with the byte pattern from pwn-> Why does gdb indicate that eip is at the bytes 137-140 when in practice i have to add 4 additional bytes for the payload to work?_**<br />
-4. Is there a way to know where the program gets its input from? => NO<br />
-5. How to decide what shellcode is suitable for each exploit? => ??<br />
-~~6. What is an indicator that an exploit has been successfully executed? I assume that "0 in rlist" is a sign. Is this sufficient to explicitly state that the shell has started functioning properly?~~<br />
-~~7. What if a program is given a payload but it does not produce any output itself? How will I identify the crash? Maybe try strace again.~~
-~~8. Must change the gdb commands (breakpoint placement)~~<br />
+**_problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected. Same problem occurs with the byte pattern from pwn-> Why does gdb indicate that eip is at the bytes 137-140 when in practice i have to add 4 additional bytes for the payload to work?_**<br />
+Is there a way to know where the program gets its input from? => NO<br />
+How to decide what shellcode is suitable for each exploit? => ??<br />
 
-what to change:
-1. find a way to make crash testing faster, it is too slow with `docker exec`
-~~2. define a test case generator method (next_test_case)~~
-3. define the shellcode somewhere else
-4. change the exploit command => WHY?
 
 
 # MAJOR ISSUE: 
@@ -86,6 +76,11 @@ Some logs to showcase what is happening. The program prints that for loop i = 0:
 So if I ignore the first line of the log here, I see that it starts with the second process normally where it spawns some more processess and one of its children, ./vuln, crashes so the parent 25218 receives sigchld with segmentation fault from its child and then gets terminated because I do so in my code. This pattern is exactly the same for all the next loops until the one that succeeds and seems perfectly normal. But I am missing on all the information about the first try meaning the first loop. There is only one line that contains the first exploit process, 25198 and it is from its parent that gets a sigchld because 25198 got terminated with sigterm. I do not see anywhere the process of the crash. Why is that? This messes up the flow of my code because in each try I always look for the line in the log where the exploit process gets a sigchild because of its child crashing with segmentation but only in the first try I dont get it.
 **Is it a problem of timing between the actual events of the crash and the strace logs, a race condition or something of that matter?** <br />
 ### race condition: script editing strace.log vs strace adding logs simultaneously
+
+other issues:<br />
+**_problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected. Same problem occurs with the byte pattern from pwn-> Why does gdb indicate that eip is at the bytes 137-140 when in practice i have to add 4 additional bytes for the payload to work?_**<br />
+Is there a way to know where the program gets its input from? => NO<br />
+How to decide what shellcode is suitable for each exploit? => ??<br />
 
 to do:<br />
 1. figure out what is going on with the ebp/eip issue in the payload<br />

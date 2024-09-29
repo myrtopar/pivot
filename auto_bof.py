@@ -45,6 +45,7 @@ def generate_test():
 
 
 def locate_ra(pattern):
+    print(pattern)
     gdb_proc = subprocess.Popen(
         [f"gdb vuln"], 
         stdin=subprocess.PIPE, 
@@ -54,7 +55,7 @@ def locate_ra(pattern):
         text=True
     )
     commands = f"""
-    set pagination off  #disabling pagination for uninterrupted output
+    set pagination off
     r
     {pattern.decode('latin-1')}
     """
@@ -64,6 +65,7 @@ def locate_ra(pattern):
 
     while True:
         output = gdb_proc.stdout.readline()
+        print(output)
         if "Program received signal SIGSEGV" in output:
             break
 
@@ -185,6 +187,7 @@ def detect_crash(pid: int):
             lines = log_file.readlines()
 
             for line in lines:
+                print(line)
                 if pattern.search(line):
                     return True
 
@@ -225,9 +228,15 @@ def main():
         
     if len(sys.argv) != 2:
         print("No executable file provided")
-        cleanup(1)
+        sys.exit(1)
 
     vuln = sys.argv[1]
+    
+
+    if not os.access(f'/app/{vuln}', os.X_OK):
+        print(f"./{vuln}: Permission denied")
+        sys.exit(1)
+
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
 

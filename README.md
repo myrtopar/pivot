@@ -10,7 +10,7 @@ When the exploit is successful and the process spawns a shell, the shell closes 
 Target binaries go to: /usr/local/bin
 
 issues:<br />
-**_problem with generating test cases "AAAA..." number of bytes in the overflow buffer at the time of the crash does not match the expected. Same problem occurs with the byte pattern from pwntools -> Why does gdb indicate that eip is at the bytes 137-140 when in practice i have to add 4 additional bytes for the payload to work?_**<br />
+Problem with pwntools cyclic_find -> It gives an offset of length 4 bytes less than the expected one
 Is there a way to know where the program gets its input from? => NO<br />
 How to decide what shellcode is suitable for each exploit? => ??<br />
 

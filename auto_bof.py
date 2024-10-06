@@ -5,7 +5,6 @@ import re
 import sys
 import select
 import fcntl
-
 from pwn import *
 
 log_file_path = 'strace.log'
@@ -55,9 +54,11 @@ def locate_ra(pattern, target):
         shell=True, 
         text=True
     )
+
+    #send the pattern to the gdb target proc from both the arguments and stdin 
     commands = f"""
     set pagination off
-    r
+    r {pattern.decode('latin-1')}
     {pattern.decode('latin-1')}
     """
 
@@ -77,6 +78,9 @@ def locate_ra(pattern, target):
     gdb_proc.stdin.flush()
 
     output, _ = gdb_proc.communicate()
+
+    print(output)
+    print(pattern)
     
     eip_value = None
     for line in output.splitlines():
@@ -84,7 +88,10 @@ def locate_ra(pattern, target):
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
 
+    print(eip_value)
+
     offset = cyclic_find(int(eip_value, 16))
+    print(f"offset: {offset}")
     return offset
 
 
@@ -236,7 +243,7 @@ def main():
         print(f"{target}: Permission denied")
         sys.exit(1)
 
-    context.log_level='warn'
+    # context.log_level='warn'
     # context.log_level = 'debug'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run

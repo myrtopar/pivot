@@ -20,7 +20,5 @@ to do:<br />
 5. make a workflow with that test<br />
 
 
-Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available<br />
-for passing payloads<br />
-When passing payload from the arguments, the length of the nopsled must be limited to 130.000 bytes. This reduces the chances of target_ra landing on the nopsled due to the <br />
-decrease in the nopsled length from 200k to 130k. By providing the payload through stdin, I don't have any limitations on the length of the command line arguments.
+Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available for passing payloads<br />
+When passing payload from the arguments, the length of the nopsled must be limited to 130.000 bytes. This reduces the chances of target_ra landing on the nopsled due to the decrease in the nopsled length from 200k to 130k. By providing the payload through stdin, I don't have any limitations on the length of the command line arguments.

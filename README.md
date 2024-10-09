@@ -10,7 +10,6 @@ When the exploit is successful and the process spawns a shell, the shell closes 
 Target binaries go to: /usr/local/bin
 
 issues:<br />
-Problem with pwntools cyclic_find -> It gives an offset of length 4 bytes less than the expected one
 Is there a way to know where the program gets its input from? => NO<br />
 How to decide what shellcode is suitable for each exploit? => ??<br />
 
@@ -20,6 +19,10 @@ to do:<br />
 3. create separate handling for stdin and separate for argument inputs<br />
 4. create test that _i guess_ will look for an execve??? <br />
 5. make a workflow with that test<br />
+
+
+Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available<br />
+for passing payloads 
 
 
 

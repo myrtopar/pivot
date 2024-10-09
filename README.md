@@ -22,12 +22,4 @@ to do:<br />
 
 
 Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available<br />
-for passing payloads 
-
-
-
-
-
-
-
-
+for passing payloads

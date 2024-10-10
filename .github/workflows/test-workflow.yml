@@ -7,9 +7,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      #what is v2?
       - name: Checkout code
         uses: actions/checkout@v2
 
+      #is docker buildx really necassary???
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -19,4 +21,9 @@ jobs:
         
       - name: Run a simple command in Docker
         run: |
-          docker run --rm autoexploit echo "Hello from Docker!"
+          docker run --rm --privileged \
+          -v ${{ github.workspace }}/auto_bof.py:/app/auto_bof.py \
+          -v ${{ github.workspace }}/binaries:/mnt/binaries \
+          autoexploit \
+          /bin/bash -c "echo 'lalala'"
+          

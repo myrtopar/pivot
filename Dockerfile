@@ -9,7 +9,8 @@ RUN apt-get update && \
     python3 python3-pip gcc-multilib gdb libc6:i386 strace \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir pwntools
+RUN pip3 install --no-cache-dir pwntools && \
+    pip3 install pytest
 
 RUN mkdir -p /mnt/binaries
 

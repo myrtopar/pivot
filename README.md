@@ -15,10 +15,10 @@ How to decide what shellcode is suitable for each exploit? => ??<br />
 
 to do:<br />
 2. fix the log truncating issue<br />
-3. create separate handling for stdin and separate for argument inputs<br />
 4. create test that _i guess_ will look for an execve??? <br />
 5. make a workflow with that test<br />
 
 
 Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available for passing payloads<br />
-When passing payload from the arguments, the length of the nopsled must be limited to 130.000 bytes. This reduces the chances of target_ra landing on the nopsled due to the decrease in the nopsled length from 200k to 130k. By providing the payload through stdin, I don't have any limitations on the length of the command line arguments.
+When passing payload from the arguments, the length of the nopsled must be limited to 130.000 bytes. This reduces the chances of target_ra landing on the nopsled due to the decrease in the nopsled length from 200k to 130k. By providing the payload through stdin, I don't have any limitations on the length of the command line arguments.<br />
+Pwntools interactive suddenly started echoing back the command before displaying the results. Idk why, didn't even try to find out.

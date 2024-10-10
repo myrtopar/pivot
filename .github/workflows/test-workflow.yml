@@ -9,8 +9,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        
-      - name: run trivial test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
         run: |
-          echo "running for test purposes"
-          echo "done"
+          docker build -t autoexploit .
+        
+      - name: Run a simple command in Docker
+        run: |
+          docker run --rm autoexploit echo "Hello from Docker!"

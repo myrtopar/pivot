@@ -10,7 +10,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip3 install --no-cache-dir pwntools && \
-    pip3 install pytest
+    pip3 install --no-cache-dir pytest
 
 RUN mkdir -p /mnt/binaries
 

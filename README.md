@@ -3,8 +3,7 @@ Iwconfig.py exploits the program iwconfig and provides a root shell. Must disabl
 docker run --rm --privileged -v `pwd`:/host -it ethan42/iwconfig
 
 bof1.py exploits the program bof1 and spawns a /bin/sh<br />
-docker run --rm --privileged -v `pwd`/auto_bof.py:/app/auto_bof.py -it autoexploit
-
+docker run --rm --privileged -v `pwd`/auto_bof.py:/app/auto_bof.py -v `pwd`/binaries:/mnt/binaries -it autoexploit
 
 When the exploit is successful and the process spawns a shell, the shell closes only with Ctrl-D (EOF) due to the use of interactive(), and 'exit' doesn't work.
 Target binaries go to: /usr/local/bin

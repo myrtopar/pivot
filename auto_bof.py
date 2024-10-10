@@ -96,7 +96,6 @@ def locate_ra(pattern, target):
     gdb_proc.stdin.write(commands)
     gdb_proc.stdin.flush()
 
-
     while True:
         output = gdb_proc.stdout.readline()
         if "Program received signal SIGSEGV" in output:

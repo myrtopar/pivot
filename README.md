@@ -16,6 +16,13 @@ How to decide what shellcode is suitable for each exploit? => ??<br />
 to do:<br />
 - fix the log truncating issue<br />
 - create test that _i guess_ will look for an execve??? <br />
+- pack the binaries in an image, upload it in dockerhub, make it public and pull the image from dockerhub in the test workflow<br />
+- fix the path bug<br />
+- fix gdb vuln offset bug <br />
+- fix interactive command echo bug<br />
+- allow arguments for custom cli args (e.g ncompress -c agr1), edit the exploit command for versatile attacks<br />
+- create more complex testing that targets binaries with more complex buffer overflow attacks (aspell word list compress)<br />
+- install poetry, add dependencies<br />
 
 
 Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available for passing payloads<br />

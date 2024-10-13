@@ -17,7 +17,7 @@ to do:<br />
 - fix the log truncating issue<br />
 - create test that _i guess_ will look for an execve??? <br />
 - pack the binaries in an image, upload it in dockerhub, make it public and pull the image from dockerhub in the test workflow<br />
-- fix the path bug<br />
+- <del>fix the path bug</del><br />
 - fix gdb vuln offset bug <br />
 - fix interactive command echo bug<br />
 - allow arguments for custom cli args (e.g ncompress -c agr1), edit the exploit command for versatile attacks<br />

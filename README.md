@@ -1,7 +1,8 @@
 ## autoexploit 💖
 
 bof1.py exploits the program bof1 and spawns a /bin/sh<br />
-docker run --rm --privileged -v `pwd`/auto_bof.py:/app/auto_bof.py -v `pwd`/binaries:/mnt/binaries -it autoexploit
+docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
+python3 src/autoexploit.py {target_bin}
 
 When the exploit is successful and the process spawns a shell, the shell closes only with Ctrl-D (EOF) due to the use of interactive(), and 'exit' doesn't work.
 Target binaries go to: /mnt/binaries (included in $PATH)

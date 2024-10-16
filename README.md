@@ -21,6 +21,7 @@ to do:<br />
 - allow arguments for custom cli args (e.g ncompress -c agr1), edit the exploit command for versatile attacks<br />
 - create more complex testing that targets binaries with more complex buffer overflow attacks (aspell word list compress)<br />
 - install poetry, add dependencies<br />
+- <del>add structure to the repo</del></br>
 
 
 Filling up the stack with 2MB of enviroment variables instead of command line arguments => more versatile, works much quicker (idk why) and keeps the arguments available for passing payloads<br />

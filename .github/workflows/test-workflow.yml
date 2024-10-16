@@ -21,6 +21,6 @@ jobs:
       - run: |
           docker run --rm --privileged \
           -v ${{ github.workspace }}/auto_bof.py:/app/auto_bof.py \
-          myrtopar/:latest autoexploit \
+          myrtopar/autoexploit:latest \
           /bin/bash -c "echo 'lalala'"
           

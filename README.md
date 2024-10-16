@@ -1,6 +1,6 @@
 ## autoexploit 💖
 
-bof1.py exploits the program bof1 and spawns a /bin/sh<br />
+autoexploit.py exploits the target binaries and spawns a /bin/sh<br />
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
 python3 src/autoexploit.py {target_bin}
 
@@ -10,7 +10,6 @@ Target binaries go to: /mnt/binaries (included in $PATH)
 issues:<br />
 Is there a way to know where the program gets its input from? => Maybe? using llms on this specific matter or maybe with strace to look for read()<br />
 How to decide what shellcode is suitable for each exploit? => ??<br />
-**Problem with target binaries located in /mnt/binaries instead of /usr/local/bin. Although the path env var is updated, pwntools process() cannot find the binaries in the case of /mnt/binaries**
 
 to do:<br />
 - fix the log truncating issue<br />

@@ -1,7 +1,7 @@
 from pwn import *
 from utils import cleanup
 
-def generate_test():
+def generate_testcase():
     return cyclic(10000)
 
 

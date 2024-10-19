@@ -18,5 +18,5 @@ jobs:
           docker run --rm --privileged \
           -v ${{ github.workspace }}/src:/app/src \
           myrtopar/autoexploit:latest \
-          python3 -m pytest tests/test_exploit.py::test_exploit"
+          python3 -m pytest tests/test_exploit.py::test_exploit
           

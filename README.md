@@ -13,7 +13,7 @@ How to decide what shellcode is suitable for each exploit? => ??<br />
 
 to do:<br />
 - fix the log truncating issue<br />
-- create test that _i guess_ will look for an execve??? <br />
+- <del>create test that _i guess_ will look for an execve??? </del><br />
 - <del>pack the binaries in an image, upload it in dockerhub, make it public and pull the image from dockerhub in the test workflow</del><br />
 - <del>fix the path bug</del><br />
 - fix gdb vuln offset bug <br />

@@ -48,13 +48,21 @@ def truncate_log():
         finally:
             fcntl.flock(log_file, fcntl.LOCK_UN)
 
+
 def check_target_bin(target):
 
     # if not os.path.isfile(f'/usr/local/bin/{target}'):
     #     raise argparse.ArgumentTypeError(f"Error: '{target}' does not exist.")
-    # if not os.access(f'/mnt/binaries/{target}', os.X_OK):
-    #     raise argparse.ArgumentTypeError(f"Error: '{target}' is not executable or permission is denied.")
-    
+
+    target_path = os.path.join('/mnt/binaries', target)
+    # print(os.access(target_path, os.R_OK))
+    # target_path = os.path.abspath(os.path.join('/mnt/binaries', target))
+    # print(repr(target_path))
+
+    # if os.path.isfile(target_path):
+    #     print(f"Target binary {target} does not exist")
+    #     sys.exit(1)
+
     return target
     
 
@@ -70,15 +78,14 @@ def check_args():
         help="The target binary file to execute (must exist in /mnt/binaries and be executable)"
     )
 
-    # parser.add_argument(
-    #     "input_mode",
-    #     type=int,
-    #     choices=[0, 1],
-    #     help="Input mode for the target: 0 for stdin (default), 1 for command-line input"
-    # )
+    parser.add_argument('exploit_args', nargs=argparse.REMAINDER)
+
     args = parser.parse_args()
 
-
+    if len(args.exploit_args) % 2 != 0:
+        print("Error: Additional arguments must be provided in pairs (e.g., '-c 1').")
+        sys.exit(1)
+        
     return args
 
 

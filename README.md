@@ -4,6 +4,12 @@ autoexploit.py exploits the target binaries and spawns a /bin/sh<br />
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
 python3 src/autoexploit.py {target_bin}
 
+for tests: 
+docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest
+python3 -m pytest tests/test_exploit.py::test_exploit
+
+
+
 When the exploit is successful and the process spawns a shell, the shell closes only with Ctrl-D (EOF) due to the use of interactive(), and 'exit' doesn't work.
 Target binaries go to: /mnt/binaries (included in $PATH)
 

@@ -8,6 +8,13 @@ for tests:
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest
 python3 -m pytest tests/test_exploit.py::test_exploit
 
+for target binaries with extra arguments:
+python3 src/autoexploit.py {target_bin} {arg1} {arg1_pos}
+
+e.g 
+ncompress -c {arg1}
+python3 src/autoexploit.py ncompress -c 1
+
 
 
 When the exploit is successful and the process spawns a shell, the shell closes only with Ctrl-D (EOF) due to the use of interactive(), and 'exit' doesn't work.
@@ -24,7 +31,7 @@ to do:<br />
 - <del>fix the path bug</del><br />
 - fix gdb vuln offset bug <br />
 - fix interactive command echo bug<br />
-- allow arguments for custom cli args (e.g ncompress -c agr1), edit the exploit command for versatile attacks<br />
+- <del>allow arguments for custom cli args (e.g ncompress -c agr1), edit the exploit command for versatile attacks</del><br />
 - create more complex testing that targets binaries with more complex buffer overflow attacks (aspell word list compress)<br />
 - install poetry, add dependencies<br />
 - <del>add structure to the repo</del></br>

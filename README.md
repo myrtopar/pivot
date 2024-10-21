@@ -1,19 +1,19 @@
 ## autoexploit 💖
 
 autoexploit.py exploits the target binaries and spawns a /bin/sh<br />
-docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
-python3 src/autoexploit.py {target_bin}
+docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest <br />
+python3 src/autoexploit.py {target_bin} <br />
 
-for tests: 
-docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest
-python3 -m pytest tests/test_exploit.py::test_exploit
+for tests: <br />
+docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />
+python3 -m pytest tests/test_exploit.py::test_exploit <br />
 
-for target binaries with extra arguments:
-python3 src/autoexploit.py {target_bin} {arg1} {arg1_pos}
+for target binaries with extra arguments: <br />
+python3 src/autoexploit.py {target_bin} {arg1} {arg1_pos} <br />
 
-e.g 
-ncompress -c {arg1}
-python3 src/autoexploit.py ncompress -c 1
+e.g <br />
+ncompress -c {arg1}<br />
+python3 src/autoexploit.py ncompress -c 1<br />
 
 
 

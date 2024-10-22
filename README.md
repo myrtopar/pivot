@@ -11,12 +11,12 @@ python3 -m pytest tests/test_exploit.py::test_exploit <br />
 for target binaries with extra arguments: <br />
 python3 src/autoexploit.py {target_bin} {arg1} {arg1_pos} <br />
 
-for some reason ncompress also works without arguments => forgot to add the extra arguments to the gdb prompt<br />
 
 e.g <br />
 ncompress -c {arg1}<br />
 python3 src/autoexploit.py ncompress -c 1<br />
 
+for some reason ncompress also works without arguments => forgot to add the extra arguments to the gdb prompt<br />
 
 
 When the exploit is successful and the process spawns a shell, the shell closes only with Ctrl-D (EOF) due to the use of interactive(), and 'exit' doesn't work.

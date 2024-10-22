@@ -15,12 +15,12 @@ def locate_ra(pattern, target):
         shell=True, 
         text=True
     )
-
+    # set disable-randomization off
     #send the pattern to the gdb target proc from both the arguments and stdin 
     #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
     commands = f"""
-    set disable-randomization off
     set pagination off
+    set disable-randomization off
     r {pattern.decode('latin-1')}
     {pattern.decode('latin-1')}
     """
@@ -30,6 +30,7 @@ def locate_ra(pattern, target):
 
     while True:
         output = gdb_proc.stdout.readline()
+        # print(output)
         if "Program received signal SIGSEGV" in output:
             break
 

@@ -9,7 +9,7 @@ jobs:
     steps:
       #what is v2?
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - run: |
           docker pull myrtopar/autoexploit:latest

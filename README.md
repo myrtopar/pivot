@@ -2,7 +2,17 @@
 
 ## Build
 
-## Run
+To build with docker:
+
+```sh
+docker build -t autoexploit .
+```
+
+## Demo Run
+
+```sh
+docker run -it autoexploit autoexploit.py /path/to/binary
+```
 
 ## Contribute
 

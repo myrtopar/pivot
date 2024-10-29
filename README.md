@@ -1,9 +1,30 @@
-## autoexploit 💖
+# autoexploit 💖
 
-autoexploit.py exploits the target binaries and spawns a /bin/sh<br />
-docker pull myrtopar/autoexploit:latest<br />
-docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest <br />
-python3 src/autoexploit.py {target_bin} <br />
+## Build
+
+To build with docker:
+
+```sh
+docker build -t autoexploit .
+```
+
+## Demo Run
+
+```sh
+docker run -it autoexploit autoexploit.py /path/to/binary
+```
+
+## Contribute
+
+## Demo
+
+autoexploit.py exploits the target binaries and spawns a /bin/sh
+
+docker pull myrtopar/autoexploit:latest
+
+docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
+
+python3 src/autoexploit.py {target_bin}
 
 for tests: <br />
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />

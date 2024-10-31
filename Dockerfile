@@ -5,6 +5,8 @@ ENV PATH="/mnt/binaries:$PATH"
 
 RUN dpkg --add-architecture i386
 
+COPY requirements.txt requirements.txt
+
 RUN apt-get update && \
     apt-get install -y \
     python3 python3-pip \
@@ -12,12 +14,13 @@ RUN apt-get update && \
     strace \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir pwntools pytest
+RUN pip install -r requirements.txt
 
 RUN mkdir -p /mnt/binaries
 
 COPY /binaries/vuln /mnt/binaries/vuln
 COPY /binaries/iwconfig_real /mnt/binaries/iwconfig_real
+# COPY --from=ethan42/ncompress /workdir/ncompress /mnt/binaries/ncompress
 COPY /binaries/ncompress /mnt/binaries/ncompress
 COPY /binaries/word-list-compress /mnt/binaries/word-list-compress
 

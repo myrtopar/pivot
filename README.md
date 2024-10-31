@@ -5,13 +5,17 @@
 To build with docker:
 
 ```sh
+docker pull myrtopar/autoexploit:latest
 docker build -t autoexploit .
 ```
 
 ## Demo Run
 
 ```sh
-docker run -it autoexploit autoexploit.py /path/to/binary
+docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
+python3 src/autoexploit.py {target_bin}
+
+
 ```
 
 ## Contribute

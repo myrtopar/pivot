@@ -1,13 +1,12 @@
-# autoexploit
+# Autoexploit
 
 ## Description
 This program, currently under construction, is designed to exploit binaries with buffer overflow vulnerabilities, ultimately providing shell access. It automates the exploitation process by analyzing the crashing behavior of vulnerable binary executable programs. The script systematically attacks these binaries with crafted inputs, observing how the program crashes and extracting valuable information from these crashes. This data is then used to develop a precise payload that manipulates vulnerable memory, enabling the execution of arbitrary code. By gaining control over the execution flow, the program successfully spawns a shell, demonstrating how vulnerabilities can be exploited for full system access.
 
-## Build
-
-To build with docker:
+## Install and Build
 
 ```sh
+git clone https://github.com/myrtopar/autoexploit.git .
 docker pull myrtopar/autoexploit:latest
 docker build -t autoexploit .
 ```
@@ -15,6 +14,7 @@ docker build -t autoexploit .
 ## Demo Run
 
 ```sh
+cd /path/to/cloned/repo
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
 python3 src/autoexploit.py {target_bin}
 ```

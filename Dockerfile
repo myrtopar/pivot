@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ENV DEBIAN_FRONTEND=noninteractive 
+ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH="/mnt/binaries:$PATH"
 
 RUN dpkg --add-architecture i386

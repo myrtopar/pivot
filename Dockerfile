@@ -18,7 +18,7 @@ RUN pip install -r requirements.txt
 
 RUN mkdir -p /mnt/binaries
 
-# COPY /binaries/vuln /mnt/binaries/vuln
+COPY --from=myrtopar/vuln:latest /mnt/bin/vuln /mnt/binaries/vuln
 COPY --from=ethan42/iwconfig:latest /usr/sbin/iwconfig_real /mnt/binaries/iwconfig
 COPY --from=ethan42/ncompress:1 /workdir/ncompress /mnt/binaries/ncompress
 COPY --from=ethan42/aspell:1 /workdir/aspell-0.50.5/prog/word-list-compress /mnt/binaries/aspell

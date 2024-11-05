@@ -18,11 +18,10 @@ RUN pip install -r requirements.txt
 
 RUN mkdir -p /mnt/binaries
 
-COPY /binaries/vuln /mnt/binaries/vuln
-COPY /binaries/iwconfig_real /mnt/binaries/iwconfig_real
-# COPY --from=ethan42/ncompress /workdir/ncompress /mnt/binaries/ncompress
-COPY /binaries/ncompress /mnt/binaries/ncompress
-COPY /binaries/word-list-compress /mnt/binaries/word-list-compress
+# COPY /binaries/vuln /mnt/binaries/vuln
+COPY --from=ethan42/iwconfig:latest /usr/sbin/iwconfig_real /mnt/binaries/iwconfig
+COPY --from=ethan42/ncompress:1 /workdir/ncompress /mnt/binaries/ncompress
+COPY --from=ethan42/aspell:1 /workdir/aspell-0.50.5/prog/word-list-compress /mnt/binaries/aspell
 
 RUN chmod +x /mnt/binaries/*
 

@@ -14,13 +14,41 @@ docker build -t autoexploit .
 ```sh
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
 python3 src/autoexploit.py {target_bin}
+```
+
+## System Diagram
+
+```mermaid
+graph LR
+  Binary --> Reproducer
+  Input[Crashing Input] --> Reproducer
+  Configuration --> Reproducer
+  Reproducer --> RootCause[Root Cause Analysis]
+  RootCause --> Payload[Payload Builder]
+  Payload --> Thrower[Throwing Framework]
+  Thrower --> Thrower
+  RootCause --> Explorer[Crash Explorer]
+  Explorer --> RootCause
+  Thrower --> Exploit
+```
+
+1. Variants of the original crash
+
 
 
 ```
 
+
+
 ## Contribute
 
+## LICENSE
+
+MIT license
+
 ## Demo
+
+Produced in [asciinema](https://asciinema.org/).
 
 autoexploit.py exploits the target binaries and spawns a /bin/sh
 

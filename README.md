@@ -16,6 +16,8 @@ docker build -t autoexploit .
 ```sh
 cd /path/to/cloned/repo
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
+
+#autoexploit.py exploits the target binaries and spawns a /bin/sh
 python3 src/autoexploit.py {target_bin}
 ```
 
@@ -38,7 +40,6 @@ graph LR
 <!-- 1. Variants of the original crash -->
 
 
-
 ## Contribute
 
 ## LICENSE
@@ -49,7 +50,8 @@ MIT license
 
 Produced in [asciinema](https://asciinema.org/).
 
-autoexploit.py exploits the target binaries and spawns a /bin/sh
+## Add your target binaries
+To use the program on your own vulnerable target binaries, you can add them by modifying the provided Dockerfile. Place your binary in the `/mnt/binaries` directory
 
 
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
@@ -63,15 +65,10 @@ python3 -m pytest tests/test_exploit.py::test_exploit <br />
 for target binaries with extra arguments: <br />
 python3 src/autoexploit.py {target_bin} {arg1} {arg1_pos} <br />
 
-
 e.g <br />
 ncompress -c {arg1}<br />
 python3 src/autoexploit.py ncompress -c 1<br />
 
-for some reason ncompress also works without arguments => forgot to add the extra arguments to the gdb prompt<br />
 
-
-When the exploit is successful and the process spawns a shell, the shell closes only with Ctrl-D (EOF) due to the use of interactive(), and 'exit' doesn't work.
-Target binaries go to: /mnt/binaries (included in $PATH)
 
 

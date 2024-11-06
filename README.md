@@ -40,7 +40,7 @@ graph LR
 <!-- 1. Variants of the original crash -->
 
 
-## Contribute
+<!-- ## Contribute -->
 
 ## LICENSE
 
@@ -53,12 +53,7 @@ Produced in [asciinema](https://asciinema.org/).
 ## Add your target binaries
 To use the program on your own vulnerable target binaries, you can add them by modifying the provided Dockerfile. Place your binary in the `/mnt/binaries` directory
 
-
-docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
-
-python3 src/autoexploit.py {target_bin}
-
-for tests: <br />
+<!-- for tests: <br />
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />
 python3 -m pytest tests/test_exploit.py::test_exploit <br />
 
@@ -67,7 +62,7 @@ python3 src/autoexploit.py {target_bin} {arg1} {arg1_pos} <br />
 
 e.g <br />
 ncompress -c {arg1}<br />
-python3 src/autoexploit.py ncompress -c 1<br />
+python3 src/autoexploit.py ncompress -c 1<br /> -->
 
 
 

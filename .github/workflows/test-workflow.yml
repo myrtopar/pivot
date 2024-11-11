@@ -20,5 +20,5 @@ jobs:
           -v ${{ github.workspace }}/tests:/app/tests \
           -e PYTHONPATH=/app/src \
           myrtopar/autoexploit:latest \
-          python3 -m pytest tests/test_exploit.py::test_exploit
+          python3 -m pytest tests/test_exploit.py::test_exploit2
           

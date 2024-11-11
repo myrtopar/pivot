@@ -104,7 +104,7 @@ def locate_ra3(pattern, target):
 
     output, _ = gdb_proc.communicate()
 
-    print(output)
+    # print(output)
     # print(pattern)
     
     eip_value = None
@@ -230,7 +230,7 @@ def stack_middle_address(output):
     stack_line = next((line for line in output_lines if 'stack' in line), None)
     
     if stack_line is None:
-        print("GDB failed to find the stack line.")
+        logging.error("GDB failed to find the stack line.")
         cleanup(1)
     
     pattern = r'\b0x[0-9a-f]+\b'

@@ -37,7 +37,12 @@ graph LR
   Thrower --> Exploit
 ```
 
-<!-- 1. Variants of the original crash -->
+Binary: Target binary to be exploited.
+Crashing input: when the target binary is executed with this specific input, it will trigger a segmentation fault.
+Configuration: Information on how the program should be executed (command line arguments needed).
+Reproducer: Validates that the input causes a memory corruption crash and reproduces the crash.
+Root Cause Analysis: Confirms that a payload input was provided, capable of reaching the return address.
+Crash explorer: Analyzes the metadata of a crash that failed to reach the return address and generates a mutation.
 
 
 <!-- ## Contribute -->

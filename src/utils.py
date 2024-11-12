@@ -5,6 +5,32 @@ import fcntl
 
 log_file_path = 'strace.log'
 
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+RESET = "\033[0m"
+RED = "\033[31m"
+
+class ColorFormatter(logging.Formatter):
+    def format(self, record):
+        # Apply red color to ERROR level messages
+        if record.levelno == logging.ERROR:
+            record.levelname = f"{RED}{record.levelname}{RESET}"
+        return super().format(record)
+
+file_handler = logging.FileHandler("app.log")
+file_handler.setLevel(logging.INFO)  # Log INFO, WARNING, ERROR, CRITICAL
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.ERROR)  # Log ERROR and CRITICAL only
+formatter = ColorFormatter('%(asctime)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+
 def drain_fd(fd: int):
     try:
         while True:

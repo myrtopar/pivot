@@ -4,6 +4,34 @@ from utils import cleanup
 def generate_testcase():
     return cyclic(10000)
 
+def reproducer(crash_input: bytes, target_bin: str):
+    """
+    Validates that the input causes a memory corruption crash by reproducing that crash.
+
+    Parameters:
+    crash_input: Initial input that will cause a memory corruption crash.
+    target_bin: The binary file we want to explore and exploit.
+
+    Returns:
+    Bool: True if the program crashes with a segmentation fault; False otherwise.
+    """
+
+    #must add the configuration asap!!!
+    rep_proc = subprocess.Popen(
+        [target_bin, crash_input],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        text=True
+    )
+
+    rep_proc.communicate(input=crash_input.decode())
+
+    if rep_proc.returncode == -11:  # -11 is the typical exit code for segmentation fault on Unix
+        return True
+    else:
+        return False
+
 
 def locate_ra(pattern, target):
 

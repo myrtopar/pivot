@@ -27,10 +27,12 @@ def reproducer(crash_input: bytes, target_bin: str):
 
     rep_proc.communicate(input=crash_input.decode())
 
-    if rep_proc.returncode == -11:  # -11 is the typical exit code for segmentation fault on Unix
+    if rep_proc.returncode == -11:  #segfault
         return True
     else:
-        return False
+        logging.error("No memory corruption crash detected")
+        sys.exit(1)
+
 
 
 def locate_ra(pattern, target):

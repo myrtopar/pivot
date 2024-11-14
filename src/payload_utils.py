@@ -34,6 +34,22 @@ def reproducer(crash_input: bytes, target_bin: str):
         sys.exit(1)
 
 
+def root_cause_analysis(crash_input: bytes, target_bin: str):
+    """
+    Triggers a test crash with the given input and extracts information from the resulting core dump.
+    Analyzes the provided payload input to confirm whether it can reach and potentially overwrite
+    the return address, causing EIP hijacking.
+
+
+    Parameters:
+    crash_input: The payload input that potentially overwrites the return address of the vulnerable function.
+        
+    target_bin: The binary file we want to explore and exploit.
+
+    Returns:
+    bool: True if the payload successfully reached and affected the return address.
+    """
+
 
 
 def locate_ra(pattern, target):

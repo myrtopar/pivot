@@ -22,6 +22,10 @@ COPY --from=myrtopar/vuln:latest /mnt/bin/vuln /mnt/binaries/vuln
 COPY --from=ethan42/iwconfig:latest /usr/sbin/iwconfig_real /mnt/binaries/iwconfig
 COPY --from=ethan42/ncompress:1 /workdir/ncompress /mnt/binaries/ncompress
 COPY --from=ethan42/aspell:1 /workdir/aspell-0.50.5/prog/word-list-compress /mnt/binaries/aspell
+COPY --from=myrtopar/june:latest /mnt/bin/june /mnt/binaries/june
+COPY --from=myrtopar/july:latest /mnt/bin/july /mnt/binaries/july
+
+
 
 RUN chmod +x /mnt/binaries/*
 

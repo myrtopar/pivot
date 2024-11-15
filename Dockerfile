@@ -25,10 +25,12 @@ COPY --from=ethan42/aspell:1 /workdir/aspell-0.50.5/prog/word-list-compress /mnt
 COPY --from=myrtopar/june:latest /mnt/bin/june /mnt/binaries/june
 COPY --from=myrtopar/july:latest /mnt/bin/july /mnt/binaries/july
 
-
-
 RUN chmod +x /mnt/binaries/*
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 WORKDIR /app
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["bash"]

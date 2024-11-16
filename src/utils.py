@@ -99,20 +99,30 @@ def check_args():
     )
 
     parser.add_argument(
-        "target",
+        'target',
         type=check_target_bin,
         help="The target binary file to execute (must exist in /mnt/binaries and be executable)"
     )
 
-    parser.add_argument('exploit_args', nargs=argparse.REMAINDER)
+    parser.add_argument(
+        'exploit_args', 
+        nargs=argparse.REMAINDER
+    )
 
     args = parser.parse_args()
-
-    if len(args.exploit_args) % 2 != 0:
-        print("Error: Additional arguments must be provided in pairs (e.g., '-c 1').")
-        sys.exit(1)
         
     return args
+
+def build_command(arg_config: argparse.Namespace, payload: bytes):
+    command = [arg_config.target]
+    
+    for arg in arg_config.exploit_args:
+        if arg == "input":
+            arg = payload
+        
+        command.append(arg)
+            
+    return command
 
 
 def cleanup(exit_code: int):

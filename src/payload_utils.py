@@ -40,7 +40,7 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
             return True
 
         else:
-            print("Core dump is missing; Something went wrong.")
+            logging.error("Core dump is missing; Something went wrong.")
             sys.exit(1)
 
     else:
@@ -68,7 +68,6 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
-    print(command)
 
     crash_proc = subprocess.Popen(
         command,
@@ -101,17 +100,25 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
     output, _ = gdb_proc.communicate()
 
-    print(output)
-    
     eip_value = None
     for line in output.splitlines():
         if "eip" in line:  # Find the line with 'eip'
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
-    print(eip_value)
+    
+    if eip_value.startswith("0x"):  #remove 0x prefix
+        eip_value = eip_value[2:]
+        
+    eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
+    eip_bytes = eip_bytes[::-1]             #convert to little endian
 
+    #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
+    if eip_bytes in crash_input:    
+        return True
 
-    return
+    #eip still has a valid value, so it wasn't overwritten by the payload. The program crashed earlier and it did not reach the return address
+    else:
+        return False
 
 
 

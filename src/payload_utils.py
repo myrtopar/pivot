@@ -2,8 +2,8 @@ from pwn import *
 from utils import cleanup, build_command
 import argparse
 
-def generate_testcase():
-    return cyclic(10000)
+def generate_testcase(len):
+    return cyclic(len)
 
 def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
     """
@@ -19,7 +19,6 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
-    print(command)
 
     rep_proc = subprocess.Popen(
         command,

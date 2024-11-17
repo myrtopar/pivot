@@ -77,17 +77,8 @@ def truncate_log():
 
 def check_target_bin(target):
 
-    # if not os.path.isfile(f'/usr/local/bin/{target}'):
-    #     raise argparse.ArgumentTypeError(f"Error: '{target}' does not exist.")
-
-    target_path = os.path.join('/mnt/binaries', target)
-    # print(os.access(target_path, os.R_OK))
-    # target_path = os.path.abspath(os.path.join('/mnt/binaries', target))
-    # print(repr(target_path))
-
-    # if os.path.isfile(target_path):
-    #     print(f"Target binary {target} does not exist")
-    #     sys.exit(1)
+    if not os.path.isfile(f'/mnt/binaries/{target}'):
+        logging.error(f"Program {target} does not exist.")
 
     return target
     

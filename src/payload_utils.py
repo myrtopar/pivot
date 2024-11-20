@@ -119,7 +119,9 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     else:
         return False
 
-
+def crash_explorer():
+    payload_mutation = []
+    return payload_mutation
 
 def locate_ra(pattern, target):
 

@@ -8,17 +8,17 @@ log_file_path = 'strace.log'
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-RESET = "\033[0m"
-RED = "\033[31m"
+RESET = '\033[0m'
+RED = '\033[31m'
 
 class ColorFormatter(logging.Formatter):
     def format(self, record):
         # Apply red color to ERROR level messages
         if record.levelno == logging.ERROR:
-            record.levelname = f"{RED}{record.levelname}{RESET}"
+            record.levelname = f'{RED}{record.levelname}{RESET}'
         return super().format(record)
 
-file_handler = logging.FileHandler("app.log")
+file_handler = logging.FileHandler('app.log')
 file_handler.setLevel(logging.INFO)  # Log INFO, WARNING, ERROR, CRITICAL
 file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(file_formatter)
@@ -43,13 +43,13 @@ def drain_fd(fd: int):
             except OSError:
                 break
     except Exception as e:
-        logging.error(f"An error occurred while draining the buffer: {e}")
+        logging.error(f'An error occurred while draining the buffer: {e}')
         cleanup()
 
 
 def attach_strace():
     main_pid = os.getpid()
-    strace_command = f"strace -f -e execve -p {str(main_pid)} -o strace.log"
+    strace_command = f'strace -f -e execve -p {str(main_pid)} -o strace.log'
 
     #all error logs to devnull to keep stdout clean
     with open(os.devnull, 'w') as devnull:
@@ -77,7 +77,7 @@ def truncate_log():
 def check_target_bin(target):
 
     if not os.path.isfile(f'/mnt/binaries/{target}'):
-        logging.error(f"Program {target} does not exist.")
+        logging.error(f'Program {target} does not exist.')
 
     return target
     
@@ -85,13 +85,13 @@ def check_target_bin(target):
 def check_args():
 
     parser = argparse.ArgumentParser(
-        description="a script that exploits a target binary and spawns a shell"
+        description='a script that exploits a target binary and spawns a shell'
     )
 
     parser.add_argument(
         'target',
         type=check_target_bin,
-        help="The target binary file to execute (must exist in /mnt/binaries and be executable)"
+        help='The target binary file to execute (must exist in /mnt/binaries and be executable)'
     )
 
     parser.add_argument(

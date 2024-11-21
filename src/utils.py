@@ -43,7 +43,7 @@ def drain_fd(fd: int):
             except OSError:
                 break
     except Exception as e:
-        print(f"An error occurred while draining the buffer: {e}")
+        logging.error(f"An error occurred while draining the buffer: {e}")
         cleanup()
 
 
@@ -58,7 +58,6 @@ def attach_strace():
             shell=True, 
             stderr=devnull
         )
-
 
     while not os.path.isfile('strace.log'):
         time.sleep(0.1)
@@ -118,7 +117,6 @@ def build_command(arg_config: argparse.Namespace, payload: bytes):
 
 def cleanup(exit_code: int):
 
-    os.remove("trash")
     os.remove("payload")
     os.remove("strace.log")
     sys.exit(exit_code)

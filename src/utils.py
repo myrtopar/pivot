@@ -107,7 +107,7 @@ def build_command(arg_config: argparse.Namespace, payload: bytes):
     command = [arg_config.target]
     
     for arg in arg_config.exploit_args:
-        if arg == "input":
+        if arg == 'input':
             arg = payload
         
         command.append(arg)
@@ -117,6 +117,6 @@ def build_command(arg_config: argparse.Namespace, payload: bytes):
 
 def cleanup(exit_code: int):
 
-    os.remove("payload")
-    os.remove("strace.log")
+    os.remove('payload')
+    os.remove('strace.log')
     sys.exit(exit_code)

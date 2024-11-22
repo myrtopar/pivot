@@ -121,6 +121,10 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
         return False
 
 def crash_explorer():
+    """
+    Extracts information from the core dump from the previous crash and mutates the crashing input, 
+    returns the mutated input to the root_cause_analysis for further crash testing.
+    """
     payload_mutation = []
 
     subprocess.Popen(

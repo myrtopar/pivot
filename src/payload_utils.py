@@ -67,7 +67,6 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
     Parameters:
     crash_input: The payload input that potentially overwrites the return address of the vulnerable function.
-        
     target_bin: The binary file we want to explore and exploit.
 
     Returns:
@@ -145,7 +144,6 @@ def payload_builder(crash_input: bytes, target_bin: str):
 
     Parameters:
     crash_input: Input that previously crashed the target binary by successfully overwriting the return address.
-
     target_bin: The binary file we want to exploit.
 
     """
@@ -162,6 +160,16 @@ def payload_builder(crash_input: bytes, target_bin: str):
     return
 
 def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
+    """
+    Rewrites a crashing input to replace the return address for EIP hijacking. 
+    The function extracts the EIP from a core dump, verifies it is present in the input, 
+    and replaces it with the target return address.
+
+    Parameters:
+    crash_input: Input that previously crashed the target binary by successfully overwriting the return address.
+    target_bin: The binary file we want to exploit.
+    target_ra: The new return address to overwrite.
+    """
 
     core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
     core_path = core_files[-1]
@@ -201,15 +209,15 @@ def extract_eip(core_output: str):
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
 
-    # print(f'eip value type: {type(eip_value)}')
-
     
     if eip_value.startswith("0x"):  #remove 0x prefix
         eip_value = eip_value[2:]
 
     eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
     eip_bytes = eip_bytes[::-1] 
+    
     return eip_bytes
+
 
 def locate_ra(pattern, target):
 

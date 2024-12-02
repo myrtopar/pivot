@@ -30,7 +30,7 @@ graph LR
   Configuration --> Reproducer
   Reproducer --> RootCause[Root Cause Analysis]
   RootCause --> Payload[Payload Builder]
-  Payload --> Thrower[Throwing Framework]
+  Payload --> Thrower[Payload Tester]
   Thrower --> Thrower
   RootCause --> Explorer[Crash Explorer]
   Explorer --> RootCause

@@ -12,6 +12,7 @@ RUN apt-get update && \
     python3 python3-pip \
     gcc-multilib gdb libc6:i386 \
     strace \
+    file \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install -r requirements.txt

@@ -76,8 +76,27 @@ def truncate_log():
 
 def check_target_bin(target):
 
-    if not os.path.isfile(f'/mnt/binaries/{target}'):
+    target_path = f'/mnt/binaries/{target}'
+
+    if not os.path.isfile(target_path):
         logging.error(f'Program {target} does not exist.')
+        sys.exit(1)
+
+    readelf_cmd = f'readelf -h {target_path} | grep \'Class\''
+
+    readelf_proc = subprocess.Popen(
+        readelf_cmd, 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        shell=True
+    )
+
+    output, _ = readelf_proc.communicate()
+
+    if 'ELF32' not in output.decode('utf-8'):
+        logging.error('64-bit binaries are not supported by the program.')
+        sys.exit(1)
 
     return target
     

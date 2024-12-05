@@ -57,6 +57,8 @@ Produced in [asciinema](https://asciinema.org/).
 
 ## Add your target binaries
 To use the program on your own vulnerable target binaries, you can add them by modifying the provided Dockerfile. Copy your binary in the `/mnt/binaries` directory.
+Make sure to disable NX and stack canary.
+`gcc -fno-stack-protector -z execstack -Wl,-z,relro,-z,lazy -o target_bin source.c`
 
 <!-- for tests: <br />
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />

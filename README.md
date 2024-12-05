@@ -57,7 +57,7 @@ Produced in [asciinema](https://asciinema.org/).
 
 ## Add your target binaries
 To use the program on your own vulnerable target binaries, you can add them by modifying the provided Dockerfile. Copy your binary in the `/mnt/binaries` directory.
-Make sure to disable NX and stack canary.
+Make sure to disable NX and stack canary. <br />
 `gcc -fno-stack-protector -z execstack -Wl,-z,relro,-z,lazy -o target_bin source.c`
 
 <!-- for tests: <br />

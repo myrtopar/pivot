@@ -129,6 +129,10 @@ def crash_explorer():
 
     shm = shared_memory.SharedMemory(name = "shm", create=True, size=1024)
 
+    shm.close()
+    shm.unlink()
+
+
     subprocess.Popen(
         "ls -la /core_dumps", 
         # stdin=subprocess.PIPE, 

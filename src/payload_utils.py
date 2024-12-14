@@ -3,6 +3,7 @@ from utils import cleanup, build_command
 from exploit_utils import ENV_VARS
 import argparse
 import glob
+from multiprocessing import shared_memory
 
 def generate_testcase(len):
     return cyclic(len)
@@ -115,7 +116,7 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     if eip in crash_input:    
         return True
 
-    #eip still has a valid value, so it wasn't overwritten by the payload. The program crashed earlier and it did not reach the return address
+    #eip still has a valid value, so it wasn't overwritten by the payload. The program prematurel ycrashed and it did not reach the return address
     else:
         return False
 
@@ -126,11 +127,13 @@ def crash_explorer():
     """
     payload_mutation = []
 
+    shm = shared_memory.SharedMemory(name = "shm", create=True, size=1024)
+
     subprocess.Popen(
-        "rm -r /core_dumps/*", 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE,
+        "ls -la /core_dumps", 
+        # stdin=subprocess.PIPE, 
+        # stdout=subprocess.PIPE, 
+        # stderr=subprocess.PIPE,
         shell=True
     )
 

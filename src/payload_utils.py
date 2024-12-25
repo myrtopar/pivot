@@ -3,10 +3,7 @@ from utils import cleanup, build_command
 from exploit_utils import ENV_VARS
 import argparse
 import glob
-from multiprocessing import shared_memory
 
-def generate_testcase(len):
-    return cyclic(len)
 
 def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
     """
@@ -110,6 +107,8 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
     output, _ = gdb_proc.communicate()
 
+    # print(f'from root cause analysis, output: {output}')
+
     eip = extract_eip(output)
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
@@ -120,26 +119,13 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     else:
         return False
 
-def crash_explorer():
+
+def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
     """
     Extracts information from the core dump from the previous crash and mutates the crashing input, 
     returns the mutated input to the root_cause_analysis for further crash testing.
     """
     payload_mutation = []
-
-    shm = shared_memory.SharedMemory(name = "shm", create=True, size=1024)
-
-    shm.close()
-    shm.unlink()
-
-
-    subprocess.Popen(
-        "ls -la /core_dumps", 
-        # stdin=subprocess.PIPE, 
-        # stdout=subprocess.PIPE, 
-        # stderr=subprocess.PIPE,
-        shell=True
-    )
 
     return payload_mutation
 

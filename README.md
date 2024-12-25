@@ -17,9 +17,12 @@ docker build -t autoexploit .
 cd /path/to/cloned/repo
 docker run --rm --privileged -v `pwd`/src:/app/src -it myrtopar/autoexploit:latest
 
+
 #autoexploit.py exploits the target binaries and spawns a /bin/sh
-python3 src/autoexploit.py {target_bin}
+python3 src/autoexploit.py {target_bin} {crash_input} {arg_config}
 ```
+**crash_input**: file name of crash input or raw bytes of input <br />
+**arg_config**: argument configuration of the vulnerable target binary (e.g {arg1} input {arg3} ... where <u>input</u> is the payload access point) <br />
 
 ## System Diagram
 

@@ -100,6 +100,19 @@ def check_target_bin(target):
 
     return target
     
+class CrashingInputAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if os.path.isfile(values):
+            with open(values, "rb") as f:
+                content = f.read()
+        else:
+            try:
+                content = eval(f"b'{values}'")
+            except Exception as e:
+                parser.error(f"Invalid inline crashing input: {e}")
+        setattr(namespace, self.dest, content)
+
+
 
 def check_args():
 
@@ -111,6 +124,11 @@ def check_args():
         'target',
         type=check_target_bin,
         help='The target binary file to execute (must exist in /mnt/binaries and be executable)'
+    )
+
+    parser.add_argument(
+        'crash_input',
+        action=CrashingInputAction
     )
 
     parser.add_argument(

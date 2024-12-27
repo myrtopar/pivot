@@ -99,7 +99,8 @@ def check_target_bin(target):
         sys.exit(1)
 
     return target
-    
+
+
 class CrashingInputAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if os.path.isfile(values):
@@ -113,8 +114,7 @@ class CrashingInputAction(argparse.Action):
         setattr(namespace, self.dest, content)
 
 
-
-def check_args():
+def check_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(
         description='a script that exploits a target binary and spawns a shell'
@@ -139,6 +139,7 @@ def check_args():
     args = parser.parse_args()
         
     return args
+
 
 def build_command(arg_config: argparse.Namespace, payload: bytes):
     command = [arg_config.target]

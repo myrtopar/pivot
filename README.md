@@ -63,6 +63,13 @@ To use the program on your own vulnerable target binaries, you can add them by m
 Make sure to disable NX and stack canary. <br />
 `gcc -fno-stack-protector -z execstack -Wl, -z, relro, -z, lazy -o target_bin source.c`
 
+
+## Tests
+```sh
+docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -v `pwd`/crash_inputs:/app/crash_inputs -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest
+
+python3 -m pytest tests/test_exploit.py::test_exploit2
+```
 <!-- for tests: <br />
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -v `pwd`/crash_inputs:/app/crash_inputs -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />
 python3 -m pytest tests/test_exploit.py::test_exploit <br />

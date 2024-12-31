@@ -19,7 +19,7 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
 
     #clear the /core_dumps directory for a clean start
     subprocess.Popen(
-        "rm -r /core_dumps/*", 
+        'rm /core_dumps/*', 
         stdin=subprocess.PIPE, 
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE,
@@ -83,10 +83,8 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
         env={**os.environ, **ENV_VARS}  #env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
     )
     
-
     #sending the crash input from stdin to all targets
     crash_proc.communicate(input=crash_input)
-
     core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
 
     core = Corefile(core_path)
@@ -121,13 +119,13 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
         reg_value = core.registers[register].to_bytes(4, byteorder='little')
 
         if reg_value in crash_input:
-            print(f'{register} crashed with input bytes {reg_value}')
+            # print(f'{register} crashed with input bytes {reg_value}')
 
             #strategy on picking valid addresses that will later align with the jump addr??????
             target = b'\xd0\xd0\xff\xff'
 
             payload_mutation = crash_input.replace(reg_value, target)
-            print(f'payload mutation {payload_mutation}')
+            # print(f'payload mutation {payload_mutation}')
 
 
     return payload_mutation
@@ -170,10 +168,13 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes
     """
 
     core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
+    core_files = sorted(core_files, key=os.path.getmtime)
+
     core_path = core_files[-1]
 
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
+
 
     if eip not in crash_input:
         logging.error('Houston we have a problem')

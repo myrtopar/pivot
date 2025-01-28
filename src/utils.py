@@ -158,3 +158,7 @@ def cleanup(exit_code: int):
     os.remove('payload')
     os.remove('strace.log')
     sys.exit(exit_code)
+
+def interactive_gdb(target: str, env_vars: dict):
+    gdb_proc = process(['gdb', target], env={**os.environ, **env_vars}, raw=True)
+    gdb_proc.interactive()

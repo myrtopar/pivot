@@ -30,7 +30,6 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
-    print(f'repr command: {command}')
 
 
     rep_proc = subprocess.Popen(
@@ -78,7 +77,6 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
-    print(f'root cause analysis command: {command}')
 
     crash_proc = subprocess.Popen(
         command,
@@ -94,8 +92,10 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
 
     if crash_proc.returncode != -11:  #if the mutation did not cause a crash
         logging.error('in root cause analysis, payload mutation did not cause a crash for some reason. Investigating...')
-        interactive_gdb(target_bin, ENV_VARS)
-        sys.exit(1)
+        # interactive_gdb(target_bin, ENV_VARS)
+        # sys.exit(1)
+        #return none when the input does not lead to a crash
+        return None
 
     core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
     core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
@@ -123,7 +123,7 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
     """
 
     #this explorer only works for june with aslr off for the time being
-    payload_mutation = []
+    payload_mutation = None
 
     core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
     core_path = core_files[-1]
@@ -198,9 +198,8 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
 
-
     if eip not in crash_input:
-        logging.error('Houston we have a problem')
+        logging.error('we have a problem')
     
     payload = crash_input.replace(eip, target_ra)
 

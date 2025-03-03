@@ -26,6 +26,7 @@ COPY --from=ethan42/ncompress:1 /workdir/ncompress /mnt/binaries/ncompress
 COPY --from=myrtopar/aspell:latest /mnt/bin/aspell /mnt/binaries/aspell
 
 COPY --from=myrtopar/june:latest /mnt/bin/june /mnt/binaries/june
+COPY --from=myrtopar/june:latest /mnt/bin/june_alt /mnt/binaries/june_alt
 COPY --from=myrtopar/july:latest /mnt/bin/july /mnt/binaries/july
 
 RUN chmod +x /mnt/binaries/*

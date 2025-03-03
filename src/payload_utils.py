@@ -46,7 +46,7 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
         core_path = f'/core_dumps/core.{target_bin}.{rep_proc.pid}'
 
         if os.path.isfile(core_path):
-            os.remove(core_path)
+            # os.remove(core_path)
             return True
 
         else:

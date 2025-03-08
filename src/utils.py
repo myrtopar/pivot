@@ -108,11 +108,10 @@ class CrashingInputAction(argparse.Action):
                 content = f.read()
         else:
             try:
-                content = eval(f"b'{values}'")
+                content = values.encode('utf-8')
             except Exception as e:
                 parser.error(f"Invalid inline crashing input: {e}")
         setattr(namespace, self.dest, content)
-
 
 def check_args() -> argparse.Namespace:
 
@@ -172,3 +171,4 @@ def interactive_gdb(target: str, corepath: str, env_vars: dict) -> None:
     else:
         gdb_proc = process(['gdb', '--quiet', target], env={**os.environ, **env_vars}, raw=True)
         gdb_proc.interactive()
+

@@ -2,29 +2,28 @@ from pwn import *
 import glob
 import argparse
 from payload_utils import root_cause_analysis
-from utils import interactive_gdb, build_command, remove_if_exists
+from utils import *
 from exploit_utils import ENV_VARS
 
+priority = ['eip', 'ebp', 'esp', 'eax', 'ebx', 'ecx', 'edx']
 
 """
 The crashing input is mutated iteratively to maximize control over EIP.
-Some mutations mute crashes (fix invalid memory dereferences) to allow further execution.
+Some mutations fix invalid memory dereferences to allow further execution.
 Some mutations lead to dead ends (program doesn't crash or crashes incorrectly).
 The goal is to backtrack when a dead-end is reached, exploring alternative mutations.
 
-find a register value in the input, replace it with a stack address, and try again. However, 
-this may not explore all possible paths. For example, there might be multiple registers causing crashes, 
-and replacing one might not address another. Or the order in which registers are handled matters.
+find a register value in the input, replace it with an address that hopefully won't crash the program, and try again. However, 
+this may not explore all possible paths, because the range of the address pool the explorer tries for each value that makes a 
+program crash on a specific register is limited.
 """
 
-def crash_explorer2(crash_input: bytes, arg_config: argparse.Namespace):
+def crash_explorer(crash_input: bytes, arg_config: argparse.Namespace):
     """
     Extracts information from the core dump from the previous crash and mutates the crashing input, 
     returns the mutated input to the root_cause_analysis for further crash testing.
     """
 
-    #maybe prioritize the critical registers with a lambda based on this priority order???
-    # priority = ['eip', 'ebp', 'esp', 'eax', 'ebx', 'ecx', 'edx']
 
     if(root_cause_analysis(crash_input, arg_config) == True):
         # no need for program input exploration - the original crashing input already hits eip
@@ -35,43 +34,43 @@ def crash_explorer2(crash_input: bytes, arg_config: argparse.Namespace):
         raise FileNotFoundError('core file not found while initializing the crash exploration. Ensure that the reproducer makes sure the initial input causes a crash.')
 
     core_path = core_files[-1]
-    core = Corefile(core_path)
 
     # interactive_gdb(arg_config.target, core_path, ENV_VARS)
 
-    cr = critical_registers(core, crash_input)
-
+    regs_pr = sorted(
+        critical_registers(core_path, crash_input),
+        key=lambda x: (priority.index(x) if x in priority else len(priority), x)
+    )
 
     #initialize the state of the exploration: no attempted mutations, havent tried overwriting any register values yet
     state = {
         'current_input': crash_input,
-        'critical_registers': cr,
-        'attempted_mutations': {reg: set() for reg in cr},  #track attempted mutations to avoid repetitions while exploring
+        'critical_registers': regs_pr,
+        'attempted_mutations': {reg: set() for reg in regs_pr},  #track attempted mutations to avoid repetitions while exploring
         'corefile': core_path,
-        'address_pool': generate_address_pool(core_path, arg_config, crash_input)
+        'address_pool': generate_address_pool(core_path, arg_config, crash_input),
+        'level': 0
     }
 
-    return iter_exploration(crash_input, arg_config, state)
+    return iter_exploration(arg_config, state)
 
 
-def iter_exploration(crash_input: bytes, arg_config: argparse.Namespace, state: dict):
+def iter_exploration(arg_config: argparse.Namespace, state: dict):
 
     #probably here i will follow a different approach for possible mutations. Currently a dead end
     if not state['critical_registers']:
         return None
-    
+
     core = Corefile(state['corefile'])
 
     #in each iteration of exploring, a previous input mutation may have caused other new registers to crash with input values. Must add them in again !!
+    jjj = state['critical_registers']
+    curr_level = state['level']
+    print(f'state critical registers: {jjj}, level: {curr_level}')
 
     for reg in state['critical_registers']:
         reg_value = core.registers[reg].to_bytes(4, byteorder='little')
         print(f'picked reg {reg} with value {reg_value}')
-
-        #generating a valid address     -> will replace with a pool of candidate addresses
-        # stack_addr = (core.stack.start + core.stack.stop) // 2
-        # stack_addr += 4
-        # valid_addr = struct.pack('<I', stack_addr)
 
         for new_addr in state['address_pool']:
 
@@ -81,7 +80,6 @@ def iter_exploration(crash_input: bytes, arg_config: argparse.Namespace, state: 
             print(f'will replace this value with new stack address {new_addr}')
 
             reached_eip = root_cause_analysis(mutation, arg_config)     #tries out the mutated input and produces new core file (or not if it is a deadend)
-            print(f'reached eip: {reached_eip}')
 
             if reached_eip == True:
                 return mutation
@@ -99,30 +97,39 @@ def iter_exploration(crash_input: bytes, arg_config: argparse.Namespace, state: 
                 # interactive_gdb(arg_config.target, core_path, ENV_VARS)
                 # backtrace(arg_config.target, core_path)
 
-                cr = critical_registers(Corefile(core_path), mutation)
-
+                regs_pr = sorted(
+                    critical_registers(core_path, mutation),
+                    key=lambda x: (priority.index(x) if x in priority else len(priority), x)
+                )
+                n_level = state['level']+1
                 n_state = {
                     'current_input': mutation,
-                    'critical_registers': cr,
-                    'attempted_mutations': {reg: set() for reg in cr},  #track attempted mutations to avoid repetitions while exploring
+                    'critical_registers': regs_pr,
+                    'attempted_mutations': {reg: set() for reg in regs_pr},  #track attempted mutations to avoid repetitions while exploring
                     'corefile': core_path,
-                    'address_pool': generate_address_pool(core_path, arg_config, mutation)
+                    # 'address_pool': generate_address_pool(core_path, arg_config, mutation)
+                    'address_pool': state['address_pool'],
+                    'level': n_level
                 }            
-                iter_exploration(mutation, arg_config, n_state)
+                result = iter_exploration(arg_config, n_state)
+                if result is not None:
+                    return result
 
             elif reached_eip == None:
                 print('this mutation caused a dead end. The program ended up not crashing at all. Backtracking ...')
+                continue
 
-                return None
+    
+    return None
 
 
+def critical_registers(core_path: str, crash_input: bytes) -> list:
 
-def critical_registers(core: Corefile, crash_input: bytes) -> list:
-
+    core = Corefile(core_path)
     critical_regs = []
     for reg in core.registers:
-        reg_value = core.registers[reg].to_bytes(4, byteorder='little')
-        if reg_value in crash_input:
+        reg_bytes = core.registers[reg].to_bytes(4, byteorder='little')
+        if reg_bytes in crash_input and not valid_stack_addr(core.registers[reg], core.stack.start, core.stack.stop):
             critical_regs.append(reg)
     
     return critical_regs
@@ -146,7 +153,6 @@ def generate_address_pool(core_path: str, arg_config: argparse.Namespace, input:
     core = Corefile(core_path)
     stack_top = core.stack.start
     stack_bottom = core.stack.stop
-    print(f'stack base: {hex(core.stack.start)}, top: {(core.stack.stop)}')
 
     esp = core.registers['esp']
     # envvar_len = sum((len(k) + 1) + (len(v) + 1) for k, v in ENV_VARS.items())
@@ -155,19 +161,22 @@ def generate_address_pool(core_path: str, arg_config: argparse.Namespace, input:
 
         #if esp is corrupted, we can try ebp instead and create a range around the ebp value
         ebp = core.registers['ebp']
-        print(f'esp is invalid, ebp: {hex(ebp)}')
 
         if not valid_stack_addr(ebp, stack_top, stack_bottom):
 
             # #if both esp and ebp are corrupted, the addresses cannot be generated based on registers (i guess??), so the range is from the stack base up to the beginning of the point where the env variables are (the range is huge, this must shrink somehow)
             # for addr in range(core.stack.start, core.envp_address, 4):
             #     address_pool.append(struct.pack('<I', addr))
-            extracted_esp = corrupted_registers(arg_config, input)
-            if extracted_esp == 0:
-                logging.error('Extracting esp value failed - gdb scripting unsuccessful')
-                
-            sys.exit(1)
 
+            #another kinda dumb way to generate a range of addresses
+            extracted_esp = corrupted_registers(arg_config, input)
+            if extracted_esp == 0 or not valid_stack_addr(extracted_esp, stack_top, stack_bottom):
+                logging.error('Extracting esp value failed - gdb scripting unsuccessful')
+
+            for i in range(256):
+                address_pool.append(struct.pack('<I', (extracted_esp + i * 4)))
+
+        
         else:
             #must change 256. How many addresses in the stack should this pool contain?
             for i in range(256):
@@ -179,9 +188,6 @@ def generate_address_pool(core_path: str, arg_config: argparse.Namespace, input:
         for i in range(256):
             address_pool.append(struct.pack('<I', (esp + i * 4)))
         
-
-
-    print(f'address pool: {len(address_pool)}')
 
     return address_pool
 
@@ -203,15 +209,21 @@ def corrupted_registers(arg_config: argparse.Namespace, input: bytes) -> int:
 
     if not os.path.exists('esp.log'):
         return 0
-    return
+    
+    with open('esp.log', 'r') as file:
+        if len(file.readlines()) < 20:
+            return 0
 
-def esp_monitor_gdb(arg_config: argparse.Namespace, input: bytes):
+    
+    return extract_esp(input)
+
+def esp_monitor_gdb(arg_config: argparse.Namespace, input: bytes)-> None:
 
     """
     Produces a gdb log file containing all esp values until esp corruption.
     """
-    with open('mutation', 'wb') as f:
-        f.write(input)
+    with open('mutation', 'wb') as mutation:
+        mutation.write(input)
 
     command = build_command(arg_config, input)
     command.pop(0)      #remove the name of the program
@@ -269,3 +281,25 @@ end
     remove_if_exists('esp_monitor.gdb')
 
     return
+
+
+def extract_esp(input: bytes) -> int:
+
+    extracted_esp = 0
+
+    #read the last 30 lines of the log file in case of unwanted messages in the end
+    with open('esp.log', 'r') as f:
+        lines = [line.strip() for line in f.readlines()]
+
+    for i in range(len(lines) - 1, max(len(lines) - 30, -1), -1):
+        if lines[i].startswith("0x"):
+            esp_value = struct.pack("<I", int(lines[i], 16))
+
+            if esp_value in input and i > 0:
+                #found the corrupted esp, the last valid value is right before this value
+                extracted_esp = int(lines[i-1], 16)
+                break
+
+    remove_if_exists('esp.log')
+
+    return extracted_esp

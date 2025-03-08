@@ -66,18 +66,18 @@ def iter_exploration(arg_config: argparse.Namespace, state: dict):
     #in each iteration of exploring, a previous input mutation may have caused other new registers to crash with input values. Must add them in again !!
     jjj = state['critical_registers']
     curr_level = state['level']
-    print(f'state critical registers: {jjj}, level: {curr_level}')
+    # print(f'state critical registers: {jjj}, level: {curr_level}')
 
     for reg in state['critical_registers']:
         reg_value = core.registers[reg].to_bytes(4, byteorder='little')
-        print(f'picked reg {reg} with value {reg_value}')
+        # print(f'picked reg {reg} with value {reg_value}')
 
         for new_addr in state['address_pool']:
 
             #try out all candidate addresses when fixing a register value
 
             mutation = state['current_input'].replace(reg_value, new_addr)
-            print(f'will replace this value with new stack address {new_addr}')
+            # print(f'will replace this value with new stack address {new_addr}')
 
             reached_eip = root_cause_analysis(mutation, arg_config)     #tries out the mutated input and produces new core file (or not if it is a deadend)
 
@@ -116,7 +116,7 @@ def iter_exploration(arg_config: argparse.Namespace, state: dict):
                     return result
 
             elif reached_eip == None:
-                print('this mutation caused a dead end. The program ended up not crashing at all. Backtracking ...')
+                # print('this mutation caused a dead end. The program ended up not crashing at all. Backtracking ...')
                 continue
 
     

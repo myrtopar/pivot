@@ -1,4 +1,5 @@
 from pwn import *
+from dataclass_utils import Target, TargetInput
 import select
 import argparse
 import fcntl
@@ -98,54 +99,17 @@ def check_target_bin(target):
         logging.error('64-bit binaries are not supported by the program.')
         sys.exit(1)
 
-    return target
+    return
 
 
-class CrashingInputAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        if os.path.isfile(values):
-            with open(values, "rb") as f:
-                content = f.read()
-        else:
-            try:
-                content = values.encode('utf-8')
-            except Exception as e:
-                parser.error(f"Invalid inline crashing input: {e}")
-        setattr(namespace, self.dest, content)
-
-def check_args() -> argparse.Namespace:
-
-    parser = argparse.ArgumentParser(
-        description='a script that exploits a target binary and spawns a shell'
-    )
-
-    parser.add_argument(
-        'target',
-        type=check_target_bin,
-        help='The target binary file to execute (must exist in /mnt/binaries and be executable)'
-    )
-
-    parser.add_argument(
-        'crash_input',
-        action=CrashingInputAction
-    )
-
-    parser.add_argument(
-        'exploit_args', 
-        nargs=argparse.REMAINDER
-    )
-
-    args = parser.parse_args()
-        
-    return args
 
 
-def build_command(arg_config: argparse.Namespace, payload: bytes):
-    command = [arg_config.target]
+def build_command(target: Target):
+    command = [target.path]
     
-    for arg in arg_config.exploit_args:
-        if arg == 'input':
-            arg = payload
+    for arg in target.argv:
+        if arg == '@@':
+            arg = target.target_input.content
         
         command.append(arg)
             
@@ -154,7 +118,7 @@ def build_command(arg_config: argparse.Namespace, payload: bytes):
 
 def cleanup(exit_code: int):
 
-    os.remove('payload')
+    # os.remove('payload')
     os.remove('strace.log')
     sys.exit(exit_code)
 

@@ -22,7 +22,7 @@ docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/crash_inputs:/app/cr
 python3 src/autoexploit.py -i {crash_input} {target_bin} {arg_config}
 ```
 **crash_input**: file name of crash input or raw bytes of input <br />
-**target_bin**: name of the target binary program
+**target_bin**: name of the target binary program <br />
 **arg_config**: argument configuration of the vulnerable target binary (e.g {arg1} @@ {arg3} ... where <u>@@</u> is the payload access point) <br />
 
 ## System Diagram

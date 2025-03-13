@@ -2,7 +2,6 @@ from pwn import *
 from utils import build_command, interactive_gdb
 from dataclass_utils import Target, TargetInput
 from exploit_utils import ENV_VARS
-import argparse
 import glob
 
 def reproducer(target: Target) -> bool:

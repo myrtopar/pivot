@@ -1,6 +1,5 @@
 from pwn import *
 import glob
-import argparse
 from payload_utils import root_cause_analysis
 from utils import *
 from exploit_utils import ENV_VARS

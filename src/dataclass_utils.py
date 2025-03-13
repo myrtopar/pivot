@@ -6,15 +6,6 @@ import shutil
 import logging
 import sys
 
-
-# @@ --> argv input (inline raw bytes or file path)
-# (no @@) --> stdin input
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/ncompress @@
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/iwconfig @@
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/aspell c
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/vuln
-
-
 @dataclass
 class TargetInput:
     type: str

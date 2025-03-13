@@ -71,7 +71,7 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
 
     #performs the crash 
 
-    # crash_input = target.target_input.content
+    target.target_input.content = crash_input
 
     command = build_command(target)
 

@@ -27,7 +27,7 @@ def crash_explorer(target: Target):
     crash_input = target.target_input.content
     if(root_cause_analysis(target, crash_input) == True):
         # no need for program input exploration - the original crashing input already hits eip
-        return target.target_input.content
+        return crash_input
 
     core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
     if not core_files:

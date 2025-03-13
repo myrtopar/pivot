@@ -19,10 +19,11 @@ docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/crash_inputs:/app/cr
 
 
 #autoexploit.py exploits the target binaries and spawns a /bin/sh
-python3 src/autoexploit.py {target_bin} {crash_input} {arg_config}
+python3 src/autoexploit.py -i {crash_input} {target_bin} {arg_config}
 ```
 **crash_input**: file name of crash input or raw bytes of input <br />
-**arg_config**: argument configuration of the vulnerable target binary (e.g {arg1} input {arg3} ... where <u>input</u> is the payload access point) <br />
+**target_bin**: name of the target binary program <br />
+**arg_config**: argument configuration of the vulnerable target binary (e.g {arg1} @@ {arg3} ... where <u>@@</u> is the payload access point) <br />
 
 ## System Diagram
 
@@ -31,12 +32,12 @@ graph LR
   Binary --> Reproducer
   Input[Crashing Input] --> Reproducer
   Configuration --> Reproducer
-  Reproducer --> RootCause[Root Cause Analysis]
-  RootCause --> Payload[Payload Builder]
+  Reproducer --> Explorer[Crash Explorer]
+  Explorer --> Payload[Payload Builder]
   Payload --> Thrower[Payload Tester]
   Thrower --> Thrower
-  RootCause --> Explorer[Crash Explorer]
-  Explorer --> RootCause
+  Explorer --> RootCause[Root Cause Analysis]
+  RootCause --> Explorer
   Thrower --> Exploit
 ```
 

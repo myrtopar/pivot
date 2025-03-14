@@ -35,7 +35,12 @@ RUN chmod +x /mnt/binaries/*
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+COPY . /app
+
+RUN pip install -e .
+
 WORKDIR /app
 
+
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bash"]
+CMD ["autoexploit"]

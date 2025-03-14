@@ -28,6 +28,7 @@ python-dateutil==2.9.0.post0
 requests==2.32.3
 ROPGadget==7.5
 rpyc==6.0.1
+setuptools==76.0.0
 six==1.16.0
 sortedcontainers==2.4.0
 tomli==2.0.2

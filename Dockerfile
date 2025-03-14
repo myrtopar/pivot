@@ -48,6 +48,8 @@ WORKDIR /app
 
 RUN pip install -e .
 
+# Install development dependencies as well
+RUN pip install .[dev]
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["autoexploit"]

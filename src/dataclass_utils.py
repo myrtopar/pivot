@@ -6,11 +6,13 @@ import shutil
 import logging
 import sys
 
+
 @dataclass
 class TargetInput:
     type: str
     content: bytes
     file_path: Optional[str] = None
+
 
 @dataclass
 class Target:
@@ -23,7 +25,6 @@ class Target:
     argv: List[str] = field(default_factory=list)
 
 
-
 class CrashingInputAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         if os.path.isfile(values):
@@ -31,7 +32,7 @@ class CrashingInputAction(argparse.Action):
                 content = f.read()
         else:
             try:
-                content = values.encode('utf-8')
+                content = values.encode("utf-8")
             except Exception as e:
                 parser.error(f"Invalid inline crashing input: {e}")
         setattr(namespace, self.dest, content)
@@ -40,20 +41,19 @@ class CrashingInputAction(argparse.Action):
 def check_args() -> Target:
 
     parser = argparse.ArgumentParser(
-        description='a script that exploits a target binary and spawns a shell'
+        description="a script that exploits a target binary and spawns a shell"
     )
 
     parser.add_argument(
-        '-i', '--input', 
-        required=True, 
+        "-i",
+        "--input",
+        required=True,
         help="Path to crash input file",
-        action=CrashingInputAction
+        action=CrashingInputAction,
     )
 
     parser.add_argument(
-        'target',
-        nargs='+', 
-        help='Target binary and necessary arguments'
+        "target", nargs="+", help="Target binary and necessary arguments"
     )
 
     args = parser.parse_args()
@@ -75,7 +75,7 @@ def check_args() -> Target:
         timeout=1000,
         env={},
         argv=args.target[1:],
-        target_input=input
+        target_input=input,
     )
 
     return target
@@ -83,18 +83,17 @@ def check_args() -> Target:
 
 def resolve_binary_path(target_bin_name: str) -> str:
     """Resolve the full path of a target binary"""
-    
-    if os.path.isabs(target_bin_name) or '/' in target_bin_name:
+
+    if os.path.isabs(target_bin_name) or "/" in target_bin_name:
         if os.path.exists(target_bin_name):
 
             if os.access(target_bin_name, os.X_OK):
                 os.path.abspath(target_bin_name)
             else:
-                logging.error(f'{target_bin_name} is not executable')
+                logging.error(f"{target_bin_name} is not executable")
                 return None
 
-
-    potential_path = os.path.join('/mnt/binaries', target_bin_name)
+    potential_path = os.path.join("/mnt/binaries", target_bin_name)
 
     if os.path.exists(potential_path) and os.access(potential_path, os.X_OK):
         return potential_path
@@ -103,5 +102,5 @@ def resolve_binary_path(target_bin_name: str) -> str:
     if full_path:
         return full_path
 
-    logging.error(f'{target_bin_name} not found.')
+    logging.error(f"{target_bin_name} not found.")
     return None

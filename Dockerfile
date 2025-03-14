@@ -37,9 +37,9 @@ RUN chmod +x /entrypoint.sh
 
 COPY . /app
 
-RUN pip install -e .
-
 WORKDIR /app
+
+RUN pip install -e .
 
 
 ENTRYPOINT ["/entrypoint.sh"]

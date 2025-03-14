@@ -15,7 +15,7 @@ jobs:
 
       - run: |
           docker run --rm --privileged \
-          -v ${{ github.workspace }}/:app/ \
+          -v ${{ github.workspace }}/:/app/ \
           ghcr.io/myrtopar/autoexploit:0.1 \
           python3 -m pytest tests/ --junitxml=test-results.xml
 

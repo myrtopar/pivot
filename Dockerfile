@@ -5,16 +5,23 @@ ENV PATH="/mnt/binaries:$PATH"
 
 RUN dpkg --add-architecture i386
 
-COPY requirements.txt requirements.txt
-
 RUN apt-get update && \
     apt-get install -y \
-    python3 python3-pip \
+    python3.11 python3-pip python3.11-venv \
     gcc-multilib gdb libc6:i386 \
     strace \
     file \
     xxd \
     && rm -rf /var/lib/apt/lists/*
+
+# Set up the virtual environment path
+ENV VIRTUAL_ENV=/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Create the virtual environment
+RUN python3.11 -m venv $VIRTUAL_ENV
+
+COPY requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt
 

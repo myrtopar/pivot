@@ -110,14 +110,6 @@ def build_command(target: Target):
     command = [target.path]
 
     for arg in target.argv:
-<<<<<<< HEAD
-        if arg == "@@":
-            arg = target.target_input.content
-
-        command.append(arg)
-
-    return command
-=======
         if arg == '@@':
             # arg = target.target_input.content
             arg = '`cat mutation`'
@@ -127,7 +119,6 @@ def build_command(target: Target):
     command_str += " ".join(command)
 
     return command_str
->>>>>>> 40e10ed (pwn process)
 
 
 def cleanup(exit_code: int):

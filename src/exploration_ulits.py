@@ -71,12 +71,9 @@ def iter_exploration(target: Target, state: dict):
         reg_value = core.registers[reg].to_bytes(4, byteorder="little")
         # print(f'picked reg {reg} with value {reg_value}')
 
-<<<<<<< HEAD
-        for new_addr in state["address_pool"]:
-=======
+
         for new_addr in state['address_pool']:
             # print(f'will replace {reg} with value {new_addr}')
->>>>>>> 40e10ed (pwn process)
 
             # try out all candidate addresses when fixing a register value
 
@@ -198,14 +195,10 @@ def generate_address_pool(core_path: str, target: Target, input: bytes) -> list:
     else:
         # must change 256. How many addresses in the stack should this pool contain?
         for i in range(256):
-<<<<<<< HEAD
-            address_pool.append(struct.pack("<I", (esp + i * 4)))
-=======
+
             # address_pool.append(struct.pack('<I', esp - i * 4))
             address_pool.append(struct.pack('<I', esp + i * 4))            
         
->>>>>>> 40e10ed (pwn process)
-
     return address_pool
 
 

@@ -1,5 +1,6 @@
 from pwn import *
 from utils import build_command, interactive_gdb
+from exploit_utils import build_exploit_command
 from dataclass_utils import Target, TargetInput
 from exploit_utils import ENV_VARS
 import glob
@@ -28,21 +29,31 @@ def reproducer(target: Target) -> bool:
 
     crash_input = target.target_input.content
 
+    with open('mutation', 'wb') as f:
+        f.write(crash_input)
+
     command = build_command(target)
 
-    rep_proc = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env={**os.environ, **ENV_VARS},
+
+    rep_proc = process(
+        command, 
+        shell=True,
+        stdin=PTY, 
+        stdout=PTY, 
+        stderr=PTY, 
+        raw=False, 
+        env={**os.environ, **ENV_VARS}
     )
 
-    # sending the crash input from stdin to all targets
-    rep_proc.communicate(input=crash_input)
+    while rep_proc.poll() is None:
+        rep_proc.wait(timeout=1)
 
-    if rep_proc.returncode == -11:  # segfault
-        core_path = f"/core_dumps/core.{target.name}.{rep_proc.pid}"
+    poll = rep_proc.poll()
+    if poll == -11 or poll == 139:  #segfault
+        int_process = rep_proc.pid + 2
+        #+2 because the process with rep_proc.pid is the wrapper process interpreted by the shell from process(). The actual target repro process is a child of the external one
+        #100% a dumb way to do this, must change it
+        core_path = f'/core_dumps/core.{target.name}.{int_process}'
 
         if os.path.isfile(core_path):
             return True
@@ -73,32 +84,37 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
     # performs the crash
 
     target.target_input.content = crash_input
+    if b'\x00' in crash_input:
+        return None
+    
+    with open('mutation', 'wb') as f:
+        f.write(crash_input)
 
     command = build_command(target)
 
-    crash_proc = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env={
-            **os.environ,
-            **ENV_VARS,
-        },  # env={**os.environ, **ENV_VARS} => merges the current env variables with the additional ENV_VARS
+    crash_proc = process(
+        command, 
+        shell=True,
+        stdin=PTY, 
+        stdout=PTY, 
+        stderr=PTY, 
+        raw=False, 
+        env={**os.environ, **ENV_VARS}
     )
 
-    # sending the crash input from stdin to all targets
-    crash_proc.communicate(input=crash_input)
+    while crash_proc.poll() is None:
+        crash_proc.wait(timeout=1)
 
-    if crash_proc.returncode != -11:  # if the mutation did not cause a crash
+    poll = crash_proc.poll()
+    if poll != -11 and poll != 139:       # if not segfault
         # logging.error('in root cause analysis, payload mutation did not cause a crash for some reason. Investigating...')
-        # interactive_gdb(target_bin, ENV_VARS)
-        # sys.exit(1)
         # return none when the input does not lead to a crash
         return None
 
-    core_files = glob.glob(f"/core_dumps/core.{target.name}.*")
-    core_path = f"/core_dumps/core.{target.name}.{crash_proc.pid}"
+    core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
+    int_process = crash_proc.pid + 2
+
+    core_path = f'/core_dumps/core.{target.name}.{int_process}'
 
     if core_path not in core_files:
         logging.error(
@@ -206,24 +222,32 @@ def verify_eip_control(target: Target):
     )
 
     crash_input = target.target_input.content
+    with open('mutation', 'wb') as f:
+        f.write(crash_input)
 
     command = build_command(target)
 
-    crash_proc = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env={**os.environ, **ENV_VARS},
+    rep_proc = process(
+        command, 
+        shell=True,
+        stdin=PTY, 
+        stdout=PTY, 
+        stderr=PTY, 
+        raw=False, 
+        env={**os.environ, **ENV_VARS}
     )
 
-    crash_proc.communicate(input=crash_input)
-    if crash_proc.returncode != -11:
-        logging.error("The crashing input failed to cause a crash.")
+    while rep_proc.poll() is None:
+        rep_proc.wait(timeout=1)
+
+    poll = rep_proc.poll()
+    if poll != -11 and poll != 139:       # if not segfault
+        logging.error('The crashing input failed to cause a crash.')
         sys.exit(1)
 
-    core_files = glob.glob(f"/core_dumps/core.{target.name}.*")
-    core_path = f"/core_dumps/core.{target.name}.{crash_proc.pid}"
+    int_process = rep_proc.pid + 2
+    core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
+    core_path = f'/core_dumps/core.{target.name}.{int_process}'
 
     if core_path not in core_files:
         logging.error(

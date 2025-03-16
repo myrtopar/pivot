@@ -49,8 +49,6 @@ graph LR
 **Crash explorer**: Analyzes the metadata of a crash that failed to reach the return address and generates a mutation.<br />
 
 
-<!-- ## Contribute -->
-
 ## LICENSE
 
 MIT license

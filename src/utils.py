@@ -103,15 +103,31 @@ def check_target_bin(target):
 
 
 def build_command(target: Target):
+    command_str = ''
+    if target.target_input.type == 'stdin':
+        command_str = 'cat mutation | '
+
     command = [target.path]
 
     for arg in target.argv:
+<<<<<<< HEAD
         if arg == "@@":
             arg = target.target_input.content
 
         command.append(arg)
 
     return command
+=======
+        if arg == '@@':
+            # arg = target.target_input.content
+            arg = '`cat mutation`'
+        
+        command.append(arg)
+    
+    command_str += " ".join(command)
+
+    return command_str
+>>>>>>> 40e10ed (pwn process)
 
 
 def cleanup(exit_code: int):

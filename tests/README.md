@@ -9,6 +9,6 @@ The following list includes all known benchmarks we use for functional testing:
 | vuln | $\checkmark$ |
 | june | $\checkmark$ |
 | aspell | (shellcode issue) |
-| july | (possible inaccuracy in memory layout) |
+| july | $\checkmark$ |
 | glftpd | not tried yet |
 | freeimage | not tried yet |

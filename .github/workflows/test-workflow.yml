@@ -1,6 +1,11 @@
 name: Functional Tests
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish to GHCR"]
+    types:
+      - completed
 
 jobs:
   test:

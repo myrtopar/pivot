@@ -11,7 +11,6 @@ RUN apt-get update && \
     gcc-multilib gdb libc6:i386 \
     strace \
     file \
-    ncurses-term \
     xxd \
     && rm -rf /var/lib/apt/lists/*
 

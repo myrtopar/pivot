@@ -1,26 +1,31 @@
-  name: Functional Tests
+name: Functional Tests
 
-  on: [push, pull_request, workflow_dispatch]
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish to GHCR"]
+    types:
+      - completed
 
-  jobs:
-    test:
-      runs-on: ubuntu-latest
+jobs:
+  test:
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - run: |
-            docker pull ghcr.io/myrtopar/autoexploit:0.1
+      - run: |
+          docker pull ghcr.io/myrtopar/pivot:0.1
 
-        - run: |
-            docker run --rm --privileged \
-            -v ${{ github.workspace }}/:/app/ \
-            ghcr.io/myrtopar/autoexploit:0.1 \
-            python3 -m pytest tests/ --junitxml=test-results.xml
+      - run: |
+          docker run --rm --privileged \
+          -v ${{ github.workspace }}/:/app/ \
+          -it ghcr.io/myrtopar/pivot:0.1 \
+          python3 -m pytest tests/ --junitxml=test-results.xml
 
-        - name: Upload test results
-          uses: actions/upload-artifact@v4
-          with:
-            name: test-results
-            path: test-results.xml
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results.xml

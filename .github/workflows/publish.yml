@@ -47,5 +47,3 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ steps.extract_version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

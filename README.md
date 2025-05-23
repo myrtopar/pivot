@@ -15,11 +15,11 @@ docker build -t myrtopar/pivot .
 
 ```sh
 cd /path/to/cloned/repo
-docker run --rm --privileged -v `pwd`/crash_inputs:/app/crash_inputs -it myrtopar/autoexploit:latest
+docker run --rm --privileged -v -it myrtopar/pivot:latest
 
 
 #pivot generates a reproducible exploit
-python3 src/autoexploit.py -i {crash_input} {target_bin} {arg_config}
+pivot -i {crash_input} {target_bin} {arg_config}
 ```
 **crash_input**: file name of crash input or raw bytes of input <br />
 **target_bin**: name of the target binary program <br />
@@ -65,9 +65,8 @@ Make sure to disable NX and stack canary. <br />
 
 ## Tests
 ```sh
-docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -v `pwd`/crash_inputs:/app/crash_inputs -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest
-
-python3 -m pytest tests/test_exploit.py::test_exploit2
+docker run --rm --privileged -v `pwd`/tests:/app/tests -it myrtopar/pivot:latest
+pytest tests/
 ```
 <!-- for tests: <br />
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -v `pwd`/crash_inputs:/app/crash_inputs -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />

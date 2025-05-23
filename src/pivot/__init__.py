@@ -1,19 +1,21 @@
-from utils import *
-from payload_utils import *
-from exploit_utils import *
-from exploration_ulits import *
-from dataclass_utils import *
-
+from .utils import *
+from .payload_utils import *
+from .exploit_utils import *
+from .exploration_ulits import *
+from .dataclass_utils import *
 
 # @@ --> argv input (inline raw bytes or file path)
 # (no @@) --> stdin input
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/ncompress @@
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/iwconfig @@
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/aspell c
-# ./autoexploit.py -i path/to/crash -- /mnt/binaries/vuln
+# pivot -i path/to/crash -- /mnt/binaries/ncompress @@
+# pivot -i path/to/crash -- /mnt/binaries/iwconfig @@
+# pivot -i path/to/crash -- /mnt/binaries/aspell c
+# pivot -i path/to/crash -- /mnt/binaries/vuln
 
 
 def main():
+
+    from pwn import context
+    context.log_level='error'
 
     if len(sys.argv) < 2:
         logging.error("No target binary provided")
@@ -21,19 +23,13 @@ def main():
 
     target_obj = check_args()
 
-    # context.log_level='warn'
-    # context.log_level = 'debug'
-    context.log_level='error'
-
     reproducer(target_obj)
 
     crash_mutation = crash_explorer(target_obj)
 
     if crash_mutation == None:
         logging.error("No successful crash input mutation found.")
-        sys.exit(1)
-
-    print(f'mutation: {crash_mutation}')
+        cleanup(1)
 
     target_obj.target_input.content = crash_mutation
 

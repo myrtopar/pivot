@@ -6,19 +6,19 @@ This program, currently under construction, is designed to exploit binaries with
 ## Install and Build
 
 ```sh
-git clone https://github.com/myrtopar/autoexploit.git .
-docker pull myrtopar/autoexploit:latest
-docker build -t autoexploit .
+git clone https://github.com/myrtopar/pivot.git .
+docker pull myrtopar/pivot:latest
+docker build -t myrtopar/pivot .
 ```
 
 ## Demo Run
 
 ```sh
 cd /path/to/cloned/repo
-docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/crash_inputs:/app/crash_inputs -it myrtopar/autoexploit:latest
+docker run --rm --privileged -v `pwd`/crash_inputs:/app/crash_inputs -it myrtopar/autoexploit:latest
 
 
-#autoexploit.py exploits the target binaries and spawns a /bin/sh
+#pivot generates a reproducible exploit
 python3 src/autoexploit.py -i {crash_input} {target_bin} {arg_config}
 ```
 **crash_input**: file name of crash input or raw bytes of input <br />

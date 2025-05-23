@@ -14,16 +14,32 @@ RUN apt-get update && \
     xxd \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up the virtual environment path
+
+WORKDIR /app
+   
+#set up the virtual environment path
 ENV VIRTUAL_ENV=/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Create the virtual environment
+#create the virtual environment
 RUN python3.11 -m venv $VIRTUAL_ENV
+#upgrade to the correct pip and setuptools versions, the others are deprecated
+RUN pip install --upgrade pip setuptools
 
-COPY requirements.txt requirements.txt
+RUN mkdir -p /config
+
+COPY requirements.txt .
+COPY pyproject.toml .
+COPY src/ ./src/
 
 RUN pip install -r requirements.txt
+
+RUN pip install -e . && pip install .[dev]
+RUN rm -rf build/ *.egg-info/ 
+RUN rm -f requirements.txt pyproject.toml
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 RUN mkdir -p /mnt/binaries
 
@@ -39,17 +55,8 @@ COPY --from=myrtopar/july:latest /mnt/bin/july /mnt/binaries/july
 
 RUN chmod +x /mnt/binaries/*
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY crash_inputs /crash_inputs
 
-COPY . /app
-
-WORKDIR /app
-
-RUN pip install -e .
-
-# Install development dependencies as well
-RUN pip install .[dev]
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["autoexploit"]
+CMD ["/bin/bash"]

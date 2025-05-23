@@ -1,8 +1,7 @@
-from pwn import *
-import glob
-from payload_utils import root_cause_analysis
-from utils import *
-from exploit_utils import ENV_VARS
+from .payload_utils import root_cause_analysis
+from .utils import *
+from .dataclass_utils import Target
+from .exploit_utils import ENV_VARS
 
 priority = ["eip", "ebp", "esp", "eax", "ebx", "ecx", "edx"]
 
@@ -43,14 +42,16 @@ def crash_explorer(target: Target):
     )
 
     # initialize the state of the exploration: no attempted mutations, havent tried overwriting any register values yet
+    address_pool = generate_address_pool(core_path, target, crash_input)
+    if address_pool is None:
+        logging.error("Address pool generation failed - corrupted stack registers")
+        cleanup(1)
+
     state = {
         "current_input": crash_input,
         "critical_registers": regs_pr,
-        "attempted_mutations": {
-            reg: set() for reg in regs_pr
-        },  # track attempted mutations to avoid repetitions while exploring
         "corefile": core_path,
-        "address_pool": generate_address_pool(core_path, target, crash_input),
+        "address_pool": address_pool,
         "level": 0,
     }
 
@@ -63,13 +64,16 @@ def iter_exploration(target: Target, state: dict):
     if not state["critical_registers"]:
         return None
 
+    if state["level"] > 30:
+        return None
+    
     core = Corefile(state["corefile"])
 
     # in each iteration of exploring, a previous input mutation may have caused other new registers to crash with input values. Must add them in again !!
 
     for reg in state["critical_registers"]:
         reg_value = core.registers[reg].to_bytes(4, byteorder="little")
-        # print(f'picked reg {reg} with value {reg_value}')
+        # print(f'picked reg {reg} with value {reg_value}, level: {state['level']}')
 
 
         for new_addr in state['address_pool']:
@@ -105,18 +109,15 @@ def iter_exploration(target: Target, state: dict):
                         x,
                     ),
                 )
-                n_level = state["level"] + 1
-                n_state = {
+
+                next_state = {
                     "current_input": mutation,
                     "critical_registers": regs_pr,
-                    "attempted_mutations": {
-                        reg: set() for reg in regs_pr
-                    },  # track attempted mutations to avoid repetitions while exploring
                     "corefile": core_path,
                     "address_pool": state["address_pool"],
-                    "level": n_level,
+                    "level": state["level"] + 1,
                 }
-                result = iter_exploration(target, n_state)
+                result = iter_exploration(target, next_state)
 
                 if result is not None:
                     return result
@@ -124,6 +125,66 @@ def iter_exploration(target: Target, state: dict):
             elif reached_eip == None:
                 # print('this mutation caused a dead end. The program ended up not crashing at all. Backtracking ...')
                 continue
+
+    return None
+
+
+
+def iter_exploration2(target: Target, state: dict, max_depth: int = 30):
+    state_stack = [state]
+
+    while state_stack:
+        current_state = state_stack.pop()
+
+        if not current_state["critical_registers"]:
+            continue
+
+        core = Corefile(current_state["corefile"])
+
+        for reg in current_state["critical_registers"]:
+            reg_value = core.registers[reg].to_bytes(4, byteorder="little")
+            # print(f'picked reg {reg} with value {reg_value}, level: {current_state["level"]}')
+
+            for new_addr in current_state["address_pool"]:
+                # print(f'will replace {reg} with value {new_addr}')
+
+                mutation = current_state["current_input"].replace(reg_value, new_addr)
+                reached_eip = root_cause_analysis(target, mutation)
+
+                if reached_eip is True:
+                    return mutation
+
+                elif reached_eip is False:
+                    if current_state["level"] >= max_depth:
+                        continue
+
+                    core_files = glob.glob(f"/core_dumps/core.{target.name}.*")
+                    core_files = sorted(core_files, key=lambda f: int(f.split(".")[-1]), reverse=True)
+
+                    if not core_files:
+                        raise FileNotFoundError("core file not found during exploration")
+
+                    core_path = core_files[0]
+                    regs_pr = sorted(
+                        critical_registers(core_path, mutation),
+                        key=lambda x: (
+                            priority.index(x) if x in priority else len(priority),
+                            x,
+                        ),
+                    )
+
+                    new_state = {
+                        "current_input": mutation,
+                        "critical_registers": regs_pr,
+                        "corefile": core_path,
+                        "address_pool": current_state["address_pool"],
+                        "level": current_state["level"] + 1,
+                    }
+                    state_stack.append(new_state)
+
+                elif reached_eip is None:
+                    #his mutation caused a dead end. The program ended up not crashing at all. Backtracking ...
+                    continue
 
     return None
 
@@ -146,7 +207,10 @@ def backtrace(target: str, core_path: str):
 
     cmd = ["gdb", "-batch", "-ex", "bt", f"./{target}", core_path]
     core_proc = subprocess.Popen(
-        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        cmd, 
+        stdin=subprocess.PIPE, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.PIPE
     )
     output, _ = core_proc.communicate()
     print(f"output of backtrace: {output}")
@@ -179,9 +243,8 @@ def generate_address_pool(core_path: str, target: Target, input: bytes) -> list:
             if extracted_esp == 0 or not valid_stack_addr(
                 extracted_esp, stack_top, stack_bottom
             ):
-                logging.error(
-                    "Extracting esp value failed - gdb scripting unsuccessful"
-                )
+                pivot_logger.error("Extracting esp value failed - gdb scripting unsuccessful")
+                return None
 
             for i in range(256):
                 address_pool.append(struct.pack("<I", (extracted_esp + i * 4)))
@@ -195,15 +258,10 @@ def generate_address_pool(core_path: str, target: Target, input: bytes) -> list:
     else:
         # must change 256. How many addresses in the stack should this pool contain?
         for i in range(256):
-
-            # address_pool.append(struct.pack('<I', esp - i * 4))
+            address_pool.append(struct.pack('<I', esp - i * 4))
             address_pool.append(struct.pack('<I', esp + i * 4))            
         
     return address_pool
-
-
-def valid_stack_addr(reg: int, stack_top: int, stack_bottom: int) -> bool:
-    return stack_top <= reg <= stack_bottom
 
 
 def corrupted_registers(target: Target, input: bytes) -> int:

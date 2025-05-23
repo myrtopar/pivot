@@ -21,7 +21,7 @@ jobs:
       - run: |
           docker run --rm --privileged \
           -v ${{ github.workspace }}/:/app/ \
-          -it ghcr.io/myrtopar/pivot:0.1 \
+          ghcr.io/myrtopar/pivot:0.1 \
           pytest tests/ --junitxml=test-results.xml
 
       - name: Upload test results

@@ -28,7 +28,7 @@ def crash_explorer(target: Target):
         # no need for program input exploration - the original crashing input already hits eip
         return crash_input
 
-    core_files = glob.glob(f"/core_dumps/core.{target.name}.*")
+    core_files = glob.glob(f"/core_dumps/core.*.*")
     if not core_files:
         raise FileNotFoundError(
             "core file not found while initializing the crash exploration. Ensure that the reproducer actually reproduces the initial crash."
@@ -93,7 +93,7 @@ def iter_exploration(target: Target, state: dict):
             elif reached_eip == False:
                 # new state for going 1 level lower in dfs search
 
-                core_files = glob.glob(f"/core_dumps/core.{target.name}.*")
+                core_files = glob.glob(f"/core_dumps/core.*.*")
                 core_files = sorted(
                     core_files, key=lambda f: int(f.split(".")[-1]), reverse=True
                 )  # sort core files in reverse order based on pid to find the last one

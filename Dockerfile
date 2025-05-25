@@ -26,8 +26,6 @@ RUN python3.11 -m venv $VIRTUAL_ENV
 #upgrade to the correct pip and setuptools versions, the others are deprecated
 RUN pip install --upgrade pip setuptools
 
-RUN mkdir -p /config
-
 COPY requirements.txt .
 COPY pyproject.toml .
 COPY src/ ./src/
@@ -46,16 +44,20 @@ RUN mkdir -p /mnt/binaries
 COPY --from=myrtopar/vuln:latest /mnt/bin/vuln /mnt/binaries/vuln
 COPY --from=ethan42/iwconfig:latest /usr/sbin/iwconfig_real /mnt/binaries/iwconfig
 COPY --from=ethan42/ncompress:1 /workdir/ncompress /mnt/binaries/ncompress
-# COPY --from=ethan42/aspell:1 /workdir/aspell-0.50.5/prog/word-list-compress /mnt/binaries/aspell
 COPY --from=myrtopar/aspell:latest /mnt/bin/aspell /mnt/binaries/aspell
 
-COPY --from=myrtopar/june:latest /mnt/bin/june /mnt/binaries/june
-COPY --from=myrtopar/june:latest /mnt/bin/june_alt /mnt/binaries/june_alt
+COPY --from=myrtopar/june:latest /mnt/bin/june_real /mnt/binaries/june_real
+COPY --from=myrtopar/june:latest /mnt/bin/june_wrapper /mnt/binaries/june
+COPY --from=myrtopar/june:latest /mnt/bin/junealt_real /mnt/binaries/junealt_real
+COPY --from=myrtopar/june:latest /mnt/bin/junealt_wrapper /mnt/binaries/junealt
+
 COPY --from=myrtopar/july:latest /mnt/bin/july /mnt/binaries/july
 
 RUN chmod +x /mnt/binaries/*
 
 COPY crash_inputs /crash_inputs
+COPY --from=myrtopar/june:latest /crash_inputs/june_input /crash_inputs/june_input
+COPY --from=myrtopar/june:latest /crash_inputs/june_alt_input /crash_inputs/junealt_input
 
 
 ENTRYPOINT ["/entrypoint.sh"]

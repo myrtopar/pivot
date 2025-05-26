@@ -71,7 +71,3 @@ pytest tests/
 <!-- for tests: <br />
 docker run --rm --privileged -v `pwd`/src:/app/src -v `pwd`/tests:/app/tests -v `pwd`/crash_inputs:/app/crash_inputs -e PYTHONPATH=/app/src -it myrtopar/autoexploit:latest <br />
 python3 -m pytest tests/test_exploit.py::test_exploit <br />
-
-
-
-

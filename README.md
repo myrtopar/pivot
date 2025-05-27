@@ -48,14 +48,14 @@ graph LR
   Thrower --> Exploit
 ```
 
-**Binary**: Target binary to be exploited.
-**Crashing input**: when the target binary is executed with this specific input, it will trigger a segmentation fault.
-**Configuration**: Information on how the program should be executed (command line arguments needed).
-**Reproducer**: Validates that the input causes a memory corruption crash and reproduces the crash.
-**Root Cause Analysis**: Confirms that a crashing input was provided, capable of tainting the EIP register.
-**Crash explorer**: Analyzes the metadata of a crash that failed to taint the EIP register and generates a mutation.
-**Payload Builder**: Crafts a fully functioning payload based on a previous successful crashing input.
-**Payload Tester**: Attempts exploitation (repeatedly if the binary is PIE), and upon success, generates a script that reproduces the exploit on the target.
+* **Binary**: Target binary to be exploited.
+* **Crashing input**: when the target binary is executed with this specific input, it will trigger a segmentation fault.
+* **Configuration**: Information on how the program should be executed (command line arguments needed).
+* **Reproducer**: Validates that the input causes a memory corruption crash and reproduces the crash.
+* **Root Cause Analysis**: Confirms that a crashing input was provided, capable of tainting the EIP register.
+* **Crash explorer**: Analyzes the metadata of a crash that failed to taint the EIP register and generates a mutation.
+* **Payload Builder**: Crafts a fully functioning payload based on a previous successful crashing input.
+* **Payload Tester**: Attempts exploitation (repeatedly if the binary is PIE), and upon success, generates a script that reproduces the exploit on the target.
 
 
 ## Adding Your Own Targets

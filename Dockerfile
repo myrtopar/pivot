@@ -14,7 +14,6 @@ RUN apt-get update && \
     xxd \
     && rm -rf /var/lib/apt/lists/*
 
-
 WORKDIR /app
    
 #set up the virtual environment path

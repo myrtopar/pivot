@@ -78,4 +78,5 @@ pytest tests/
 MIT license
 
 ## Demo
-Produced in [asciinema](https://asciinema.org/).
+Produced in [asciinema](https://asciinema.org/)
+[![asciicast](https://asciinema.org/a/uKYdPCjG9pioePk4MwUCxfMLs.svg)](https://asciinema.org/a/uKYdPCjG9pioePk4MwUCxfMLs)

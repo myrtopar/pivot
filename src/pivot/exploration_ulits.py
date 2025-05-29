@@ -3,7 +3,7 @@ from .utils import *
 from .dataclass_utils import Target
 from .exploit_utils import ENV_VARS
 
-priority = ["eip", "ebp", "esp", "eax", "ebx", "ecx", "edx"]
+priority = ["eip", "ebp", "esp", "eax", "ebx", "ecx", "edx", "esi", "edi"]
 
 """
 The crashing input is mutated iteratively to maximize control over EIP.
@@ -73,8 +73,7 @@ def iter_exploration(target: Target, state: dict):
 
     for reg in state["critical_registers"]:
         reg_value = core.registers[reg].to_bytes(4, byteorder="little")
-        # print(f'picked reg {reg} with value {reg_value}, level: {state['level']}')
-
+        # print(f'picked reg {reg} with value {reg_value}, level: {state["level"]}')
 
         for new_addr in state['address_pool']:
             # print(f'will replace {reg} with value {new_addr}')
@@ -129,66 +128,6 @@ def iter_exploration(target: Target, state: dict):
     return None
 
 
-
-def iter_exploration2(target: Target, state: dict, max_depth: int = 30):
-    state_stack = [state]
-
-    while state_stack:
-        current_state = state_stack.pop()
-
-        if not current_state["critical_registers"]:
-            continue
-
-        core = Corefile(current_state["corefile"])
-
-        for reg in current_state["critical_registers"]:
-            reg_value = core.registers[reg].to_bytes(4, byteorder="little")
-            # print(f'picked reg {reg} with value {reg_value}, level: {current_state["level"]}')
-
-            for new_addr in current_state["address_pool"]:
-                # print(f'will replace {reg} with value {new_addr}')
-
-                mutation = current_state["current_input"].replace(reg_value, new_addr)
-                reached_eip = root_cause_analysis(target, mutation)
-
-                if reached_eip is True:
-                    return mutation
-
-                elif reached_eip is False:
-                    if current_state["level"] >= max_depth:
-                        continue
-
-                    core_files = glob.glob(f"/core_dumps/core.{target.name}.*")
-                    core_files = sorted(core_files, key=lambda f: int(f.split(".")[-1]), reverse=True)
-
-                    if not core_files:
-                        raise FileNotFoundError("core file not found during exploration")
-
-                    core_path = core_files[0]
-                    regs_pr = sorted(
-                        critical_registers(core_path, mutation),
-                        key=lambda x: (
-                            priority.index(x) if x in priority else len(priority),
-                            x,
-                        ),
-                    )
-
-                    new_state = {
-                        "current_input": mutation,
-                        "critical_registers": regs_pr,
-                        "corefile": core_path,
-                        "address_pool": current_state["address_pool"],
-                        "level": current_state["level"] + 1,
-                    }
-                    state_stack.append(new_state)
-
-                elif reached_eip is None:
-                    #his mutation caused a dead end. The program ended up not crashing at all. Backtracking ...
-                    continue
-
-    return None
-
-
 def critical_registers(core_path: str, crash_input: bytes) -> list:
 
     core = Corefile(core_path)
@@ -221,18 +160,34 @@ def generate_address_pool(core_path: str, target: Target, input: bytes) -> list:
     address_pool = []
 
     core = Corefile(core_path)
-    stack_top = core.stack.start
-    stack_bottom = core.stack.stop
+    stack_start = core.stack.start
+    stack_stop= core.stack.stop
+
 
     esp = core.registers["esp"]
     # envvar_len = sum((len(k) + 1) + (len(v) + 1) for k, v in ENV_VARS.items())
+    # print(f"esp: {esp.to_bytes(4, byteorder='little')}")
 
-    if not valid_stack_addr(esp, stack_top, stack_bottom):
+    if not valid_stack_addr(esp, stack_start, stack_stop):
 
         # if esp is corrupted, we can try ebp instead and create a range around the ebp value
         ebp = core.registers["ebp"]
 
-        if not valid_stack_addr(ebp, stack_top, stack_bottom):
+        if not valid_stack_addr(ebp, stack_start, stack_stop):
+
+            for reg in core.registers:
+                if reg in ["esp", "ebp"]:
+                    continue
+
+                reg_value = core.registers[reg]
+                if valid_stack_addr(reg_value, stack_start, stack_stop):
+                    # print(f"Found valid register {reg} with value {reg_value.to_bytes(4, byteorder='little')}")
+                    # if we found a valid register, we can use it to generate the address pool
+                    for i in range(256):
+                        address_pool.append(struct.pack("<I", reg_value - i * 4))
+                        address_pool.append(struct.pack("<I", reg_value + i * 4))
+
+                    return address_pool
 
             # #if both esp and ebp are corrupted, the addresses cannot be generated based on registers (i guess??), so the range is from the stack base up to the beginning of the point where the env variables are (the range is huge, this must shrink somehow)
             # for addr in range(core.stack.start, core.envp_address, 4):
@@ -241,7 +196,7 @@ def generate_address_pool(core_path: str, target: Target, input: bytes) -> list:
             # another kinda dumb way to generate a range of addresses
             extracted_esp = corrupted_registers(target, input)
             if extracted_esp == 0 or not valid_stack_addr(
-                extracted_esp, stack_top, stack_bottom
+                extracted_esp, stack_start, stack_stop
             ):
                 pivot_logger.error("Extracting esp value failed - gdb scripting unsuccessful")
                 return None

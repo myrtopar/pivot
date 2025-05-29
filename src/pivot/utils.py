@@ -1,4 +1,3 @@
-from pwn import process, Corefile, PTY
 import select
 import fcntl
 import logging
@@ -14,6 +13,9 @@ import re
 import inspect
 import termios
 
+import pwnlib.args
+pwnlib.args.free_form = False   #for argparse compatibility and accepting capitalized arguments
+from pwn import process, Corefile, PTY
 
 strace_log_path = "strace.log"
 

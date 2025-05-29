@@ -23,6 +23,8 @@ def main():
 
     target_obj = check_args()
 
+    # sys.exit(0)
+
     reproducer(target_obj)
 
     crash_mutation = crash_explorer(target_obj)

@@ -39,6 +39,18 @@ class ValidateTargetAction(argparse.Action):
         check_target_bin(values[0])  
         setattr(namespace, self.dest, values)
 
+class EnvVarAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        env_vars = {}
+        for val in values:
+            if '=' not in val:
+                parser.error(f"Invalid environment variable format: '{val}' (expected KEY=VALUE)")
+            key, value = val.split('=', 1)
+            if not key or not value:
+                parser.error("Environment variables must be provided in KEY=VALUE format.")
+            env_vars[key] = value
+        setattr(namespace, self.dest, env_vars)
+
 
 def check_args() -> Target:
 
@@ -53,6 +65,7 @@ def check_args() -> Target:
         help="Path to crash input file",
         action=CrashingInputAction,
     )
+
 
     parser.add_argument(
         "-l",
@@ -69,19 +82,30 @@ def check_args() -> Target:
     )
 
     parser.add_argument(
-        "target",
-        nargs="+", 
+        "-e",
+        "--env",
+        nargs="+",
+        required=False,
+        help="Environment variables needed for the target binary",
+        action=EnvVarAction,
+    )
+
+    parser.add_argument(
+        "-t",
+        "--target",
+        nargs="+",
+        required=True,
         action=ValidateTargetAction,
-        help="Target binary and argument configuration",
+        help="Target binary followed by its required arguments and/or argument placeholders (@@)",
     )
 
     args = parser.parse_args()
     setup_logging(args.log, args.verbose)
 
-    if "@@" in args.target:
-        input = TargetInput(type="argv", content=args.input)
-    else:
-        input = TargetInput(type="stdin", content=args.input)
+    input = TargetInput(
+        type=detect_input_type(args),
+        content=args.input,
+    )
 
     target_name = args.target[0]
     target_bin_path = resolve_binary_path(target_name)
@@ -89,12 +113,11 @@ def check_args() -> Target:
     if target_bin_path is None:
         sys.exit(1)
 
-
     target = Target(
         name=target_name,
         path=target_bin_path,
         timeout=1000,
-        env=dict(os.environ),
+        env={**dict(os.environ), **(args.env or {})},
         argv=args.target[1:],
         target_input=input,
     )
@@ -148,7 +171,14 @@ def check_target_bin(target: str) -> None:
     output, _ = readelf_proc.communicate()
 
     if "ELF32" not in output.decode("utf-8"):
-        logging.error("64-bit binaries are not supported by the program.")
+        pivot_logger.error("64-bit binaries are not supported by the program.")
         sys.exit(1)
 
     return
+
+def detect_input_type(args):
+    if args.env and any("@@" in v for v in args.env.values()):
+        return "env"
+    if "@@" in args.target:
+        return "argv"
+    return "stdin"

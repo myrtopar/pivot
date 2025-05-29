@@ -56,6 +56,13 @@ COPY --from=myrtopar/iwconfig:latest /mnt/bin/iwconfig_real /mnt/binaries/iwconf
 COPY --from=myrtopar/iwconfig:latest /mnt/bin/iwconfig /mnt/binaries/iwconfig
 COPY --from=myrtopar/ncompress:latest /mnt/bin/ncompress_real /mnt/binaries/ncompress_real
 COPY --from=myrtopar/ncompress:latest /mnt/bin/ncompress /mnt/binaries/ncompress
+COPY --from=myrtopar/stacksix:latest /mnt/bin/stacksix_real /mnt/binaries/stacksix_real
+COPY --from=myrtopar/stacksix:latest /mnt/bin/stacksix /mnt/binaries/stacksix
+COPY --from=myrtopar/picoctf_bof:latest /mnt/bin/picoctf_real /mnt/binaries/picoctf_real
+COPY --from=myrtopar/picoctf_bof:latest /mnt/bin/picoctf /mnt/binaries/picoctf
+
+
+
 
 RUN chmod +x /mnt/binaries/*
 
@@ -68,6 +75,8 @@ COPY --from=myrtopar/vuln:latest /crash_inputs/vuln_input /crash_inputs/vuln_inp
 COPY --from=myrtopar/aspell:latest /crash_inputs/aspell_input /crash_inputs/aspell_input
 COPY --from=myrtopar/iwconfig:latest /crash_inputs/iwconfig_input /crash_inputs/iwconfig_input
 COPY --from=myrtopar/ncompress:latest /crash_inputs/ncompress_input /crash_inputs/ncompress_input
+COPY --from=myrtopar/stacksix:latest /crash_inputs/stacksix_input /crash_inputs/stacksix_input
+COPY --from=myrtopar/picoctf_bof:latest /crash_inputs/picoctf_input /crash_inputs/picoctf_input
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]
@@ -79,3 +88,5 @@ CMD ["/bin/bash"]
 #iwconfig done
 #ncompress done
 #aspell done
+#stacksix done
+#picoctf done

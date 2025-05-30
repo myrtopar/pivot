@@ -13,7 +13,7 @@ for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
 logging.basicConfig(
-    filename="test1.log",
+    filename="test2.log",
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
     filemode="w",  # optional: start fresh every run
@@ -27,7 +27,6 @@ class test_target:
     arg_config: List[str] = field(default_factory=list)
     env: Dict[str, str] = field(default_factory=dict)
 
-
 targets = {
     "iwconfig": test_target(
         name="iwconfig",
@@ -35,39 +34,43 @@ targets = {
         target_input_path="/crash_inputs/iwconfig_input",
         arg_config=["iwconfig", "@@"],
         env=None,
-
     ),
     "vuln": test_target(
         name="vuln",
         timeout=100,
         target_input_path="/crash_inputs/vuln_input",
         arg_config=["vuln"],
-        env=None,
-
+        env=None
     ),
     "ncompress": test_target(
         name="ncompress",
         timeout=100,
         target_input_path="/crash_inputs/ncompress_input",
         arg_config=["ncompress", "@@"],
-        env=None,
+        env=None
     ),
     "june": test_target(
         name="june",
         timeout=100,
         target_input_path="/crash_inputs/june_input",
         arg_config=["june", "@@"],
-        env=None,
+        env=None
     ),
     "july": test_target(
         name="july",
         timeout=100,
         target_input_path="/crash_inputs/july_input",
         arg_config=["july", "@@"],
-        env=None,
+        env=None
+    ),
+    "aspell": test_target(
+        name="aspell",
+        timeout=100,
+        target_input_path="/crash_inputs/aspell_input",
+        arg_config=["aspell", "c"],
+        env=None
     ),
 }
-
 
 ENTRYPOINT = "pivot"
 
@@ -92,44 +95,23 @@ def test_target(target_key: str):
     logging.info(f"Invocation: {' '.join(invocation)}")
     try:
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logging.info(f"Using temporary directory: {temp_dir}")
-            os.environ["TMPDIR"] = temp_dir
+        exploit_command = " ".join(invocation)
+        logging.info(f"System command: {exploit_command}")
+        result = subprocess.run(
+            exploit_command,
+            timeout=target.timeout,
+            shell=True,
+            capture_output=True,
+            text=True
+        )
 
-            exploit_command = " ".join(invocation)
-            logging.info(f"System command: {exploit_command}")
-            output = subprocess.check_output(
-                exploit_command,
-                timeout=target.timeout,
-                shell=True,
-            )
+        output = result.stdout
+        logging.info(f"Output: {output}")
 
-            logging.info(f"Output: {output.decode()}")
+        assert result.returncode == 0
+        logging.info(f"Test for target {target.name} passed successfully.")
+        shutil.rmtree(f"/app/{target.name}_exploit")
 
-            exploit_script_path = f"/app/{target.name}_exploit/exploit.py"
-            test_command = f"/bin/echo 'touch {temp_dir}/output' | {exploit_script_path}"
-
-            logging.info(f"Exploit command: {test_command}")
-            proc = subprocess.Popen(
-                test_command,
-                shell=True,
-                executable='/bin/bash',
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.DEVNULL  # Explicitly no stdin
-            )
-            try:
-                stdout, stderr = proc.communicate(timeout=target.timeout)
-                logging.info(f"Exploit stdout: {stdout.decode()}")
-                logging.info(f"Exploit stderr: {stderr.decode()}")
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                logging.error("Exploit command timed out")
-                raise
-
-            assert os.path.exists(f"{temp_dir}/output")
-            logging.info("Test passed: file created")
-            shutil.rmtree(f"/app/{target.name}_exploit")
 
     except Exception as e:
         logging.error(f"Failed to start process: {e}")

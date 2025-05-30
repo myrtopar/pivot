@@ -17,21 +17,36 @@ cd pivot
 docker build -t pivot .
 ```
 
-## Running Pivot
+## Pivot CLI
+
+### Run in Docker
 
 ```sh
 docker run --rm --privileged -it ghcr.io/myrtopar/pivot:0.1
-
-#pivot generates a reproducible exploit script
-pivot -i {crash_input} {target_bin} {arg_config} [--log] [--verbose]
 ```
-* **crash_input**: file name of crash input or raw bytes of input
-* **target_bin**: name of the target binary program
-* **arg_config**:   Command-line arguments for the binary. Use `@@` where the payload goes. Leave empty if input is read from stdin.
-* **--log** (optional): Enables detailed logging to a file inside the container.
-* **--verbose** (optional): Prints detailed output to the console during execution.
 
+### Usage
+```sh
+#pivot generates a reproducible exploit script
+pivot --input <crash_input> --target <target_bin> [args...] [--env KEY=VALUE ...] [--log] [--verbose]
 
+```
+* **-i**,**--input**: File name of crash input or raw bytes of input
+* **-t**,**--target**: Name of the target binary program
+* **args**: CLI args for the target binary (use `@@` as payload placeholder)
+* **-l**,**--log** (optional): Enables detailed logging to a file inside the container.
+* **-v**,**--verbose** (optional): Prints detailed output to the console during execution.
+* **-e**,**--env** (optional): 	Environment variables passed to the target (can include `@@` in value)
+
+### Example
+```sh
+pivot -i ./crashes/input1 -t ./bin/target ARG1 ARG2 @@ --env FOO=BAR -v -l
+```
+
+### Help
+```sh
+pivot --help
+```
 ## System Diagram
 
 ```mermaid
@@ -61,7 +76,7 @@ graph LR
 ## Adding Your Own Targets
 To test your own vulnerable binaries:
 1. Copy them into `/mnt/binaries/` in the Docker container. All binaries in this directory are automatically added to the `PATH`.
-2. Ensure they are compiled for 32-bit and with NX and stack canary disabled.
+2. Ensure they are compiled for 32-bit and with NX and stack canary disabled. <br />
 `gcc -fno-stack-protector -z execstack -m32 -o target_bin target_source.c`
 3. Generate a crashing input that reliably triggers a buffer overflow in your binary.
 We recommend using the pwn.cyclic module from Pwntools to craft such inputs.

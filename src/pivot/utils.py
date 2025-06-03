@@ -12,6 +12,7 @@ import argparse
 import re
 import inspect
 import termios
+import signal
 
 import pwnlib.args
 pwnlib.args.free_form = False   #for argparse compatibility and accepting capitalized arguments
@@ -19,9 +20,9 @@ from pwn import process, Corefile, PTY
 
 strace_log_path = "strace.log"
 
-
 SUCCESS_LEVEL = 35
 logging.addLevelName(SUCCESS_LEVEL, "SUCCESS")
+
 
 def success(self, message, *args, **kwargs):
     if self.isEnabledFor(SUCCESS_LEVEL):
@@ -31,6 +32,7 @@ logging.Logger.success = success
 
 pivot_logger = logging.getLogger("pivot")
 pivot_logger.setLevel(logging.DEBUG)
+
 
 def setup_logging(enable_log: bool, verbose: bool) -> None:
 
@@ -83,8 +85,9 @@ def drain_fd(fd: int):
             except OSError:
                 break
     except Exception as e:
-        logging.error(f"An error occurred while draining the buffer: {e}")
+        pivot_logger.error(f"An error occurred while draining the buffer: {e}")
         cleanup()
+
 
 def disable_echo(fd):
     attrs = termios.tcgetattr(fd)
@@ -93,15 +96,39 @@ def disable_echo(fd):
 
 
 def attach_strace():
-    main_pid = os.getpid()
-    strace_command = f"strace -f -e execve -p {str(main_pid)} -o strace.log"
+    strace_command = f"strace -f -e trace=clone,fork,vfork,execve -p {str(os.getpid())} -o strace.log"
 
     # all error logs to devnull to keep stdout clean
     with open(os.devnull, "w") as devnull:
-        subprocess.Popen(strace_command, shell=True, stderr=devnull)
+        strace_proc = subprocess.Popen(
+            strace_command, 
+            shell=True,
+            stderr=devnull
+        )
 
-    while not os.path.isfile("strace.log"):
+    while not os.path.isfile(f"strace.log"):
         time.sleep(0.1)
+
+    return strace_proc
+
+def detect_real_crash(parent_proc: int) -> int:
+    crash_pattern = re.compile(r"^(\d+)\s+\+\+\+ killed by SIGSEGV \(core dumped\) \+\+\+")
+    pid = None
+    try:
+        with open(f"strace.log", "r") as log_file:
+            lines = log_file.readlines()
+            for line in lines:
+                match = crash_pattern.search(line)
+                if match:
+                    pid = int(match.group(1))
+                    if pid not in range(parent_proc, parent_proc + 5):
+                        continue
+
+    except FileNotFoundError:
+        pivot_logger.error("Strace log file not found.")
+        cleanup(1)
+
+    return pid
 
 
 def truncate_log():

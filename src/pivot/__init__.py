@@ -22,12 +22,13 @@ def main():
         sys.exit(1)
 
     target_obj = check_args()
+    attach_strace()
 
-    # sys.exit(0)
 
     reproducer(target_obj)
 
     crash_mutation = crash_explorer(target_obj)
+    # sys.exit(0)
 
     if crash_mutation == None:
         logging.error("No successful crash input mutation found.")

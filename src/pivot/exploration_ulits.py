@@ -44,7 +44,7 @@ def crash_explorer(target: Target):
     # initialize the state of the exploration: no attempted mutations, havent tried overwriting any register values yet
     address_pool = generate_address_pool(core_path, target, crash_input)
     if address_pool is None:
-        logging.error("Address pool generation failed - corrupted stack registers")
+        pivot_logger.error("Address pool generation failed - corrupted stack registers")
         cleanup(1)
 
     state = {

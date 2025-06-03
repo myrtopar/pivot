@@ -36,7 +36,7 @@ pivot --input <crash_input> --target <target_bin> [args...] [--env KEY=VALUE ...
 * **args**: CLI args for the target binary (use `@@` as payload placeholder)
 * **-l**,**--log** (optional): Enables detailed logging to a file inside the container.
 * **-v**,**--verbose** (optional): Prints detailed output to the console during execution.
-* **-e**,**--env** (optional): 	Environment variables passed to the target (can include `@@` in value)
+* **-e**,**--env** (optional): 	Environment variables passed to the target (can include `@@` in value for payload placeholder)
 
 ### Example
 ```sh

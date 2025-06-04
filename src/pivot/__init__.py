@@ -24,12 +24,9 @@ def main():
     target_obj = check_args()
     attach_strace()
 
-
     reproducer(target_obj)
 
     crash_mutation = crash_explorer(target_obj)
-    # sys.exit(0)
-
     if crash_mutation == None:
         logging.error("No successful crash input mutation found.")
         cleanup(1)
@@ -38,9 +35,7 @@ def main():
 
     verify_eip_control(target_obj)
     payload_builder(target_obj)
-
     payload_tester(target_obj)
-
 
 if __name__ == "__main__":
     main()

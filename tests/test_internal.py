@@ -7,13 +7,12 @@ from dataclasses import dataclass, field
 import logging
 import os
 import subprocess
-import tempfile
 
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 
 logging.basicConfig(
-    filename="test2.log",
+    filename="test.log",
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
     filemode="w",  # optional: start fresh every run
@@ -63,6 +62,22 @@ targets = {
         arg_config=["july", "@@"],
         env=None
     ),
+    "stacksix": test_target(
+        name="stacksix",
+        timeout=100,
+        target_input_path="/crash_inputs/stacksix_input",
+        arg_config=["stacksix"],
+        env={
+            'ExploitEducation': '@@'
+        }
+    ),
+    "picoctf": test_target(
+        name="picoctf",
+        timeout=100,
+        target_input_path="/crash_inputs/picoctf_input",
+        arg_config=["picoctf"],
+        env=None,
+    ),
     # "aspell": test_target(
     #     name="aspell",
     #     timeout=100,
@@ -86,6 +101,7 @@ def test_target(target_key: str):
     ]
     invocation.append("--target")
     invocation.extend(target.arg_config)
+    # invocation.append("--verbose")
 
     if target.env:
         invocation.append("--env")

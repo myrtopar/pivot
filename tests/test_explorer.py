@@ -57,6 +57,7 @@ targets = {
     ),
 }
 
+
 ENTRYPOINT = "pivot"
 
 @pytest.mark.parametrize("target_key", targets.keys())

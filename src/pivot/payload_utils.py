@@ -157,6 +157,10 @@ def root_cause_analysis(target: Target, crash_input: bytes) -> bool:
 
     core = Corefile(core_path)
 
+    # for reg in core.registers:
+    #     reg_bytes = core.registers[reg].to_bytes(4, byteorder="little")
+    #     print(f'{reg}: {reg_bytes}')
+
     eip = core.eip.to_bytes(4, byteorder="little")
 
 

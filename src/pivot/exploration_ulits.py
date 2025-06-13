@@ -4,6 +4,7 @@ from .dataclass_utils import Target
 from .exploit_utils import ENV_VARS
 
 priority = ["eip", "ebp", "esp", "eax", "ebx", "ecx", "edx", "esi", "edi"]
+mutations_count = 0
 
 """
 The crashing input is mutated iteratively to maximize control over EIP.
@@ -59,6 +60,7 @@ def crash_explorer(target: Target):
 
 
 def iter_exploration(target: Target, state: dict):
+    global mutations_count
 
     # probably here i will follow a different approach for possible mutations. Currently a dead end
     if not state["critical_registers"]:
@@ -71,6 +73,7 @@ def iter_exploration(target: Target, state: dict):
 
     # in each iteration of exploring, a previous input mutation may have caused other new registers to crash with input values. Must add them in again !!
 
+    # print(f'critical registers: {state["critical_registers"]}')
     for reg in state["critical_registers"]:
         reg_value = core.registers[reg].to_bytes(4, byteorder="little")
         # print(f'picked reg {reg} with value {reg_value}, level: {state["level"]}')
@@ -81,12 +84,17 @@ def iter_exploration(target: Target, state: dict):
             # try out all candidate addresses when fixing a register value
 
             mutation = state["current_input"].replace(reg_value, new_addr)
+            mutations_count += 1
 
             reached_eip = root_cause_analysis(
-                target, mutation
+                target, 
+                mutation
             )  # tries out the mutated input and produces new core file (or not if it is a deadend)
 
+
             if reached_eip == True:
+                pivot_logger.info(f"state tree level: {state['level']}")
+                pivot_logger.info(f"mutations generated: {mutations_count}")
                 return mutation
 
             elif reached_eip == False:
@@ -152,7 +160,6 @@ def backtrace(target: str, core_path: str):
         stderr=subprocess.PIPE
     )
     output, _ = core_proc.communicate()
-    print(f"output of backtrace: {output}")
     return
 
 
@@ -195,6 +202,7 @@ def generate_address_pool(core_path: str, target: Target, input: bytes) -> list:
 
             # another kinda dumb way to generate a range of addresses
             extracted_esp = corrupted_registers(target, input)
+
             if extracted_esp == 0 or not valid_stack_addr(
                 extracted_esp, stack_start, stack_stop
             ):
@@ -231,11 +239,12 @@ def corrupted_registers(target: Target, input: bytes) -> int:
     esp_monitor_gdb(target, input)
 
     if not os.path.exists("esp.log"):
+        print('esp log doesnt exist')
         return 0
 
-    with open("esp.log", "r") as file:
-        if len(file.readlines()) < 20:
-            return 0
+    # with open("esp.log", "r") as file:
+    #     if len(file.readlines()) < 20:
+    #         return 0
 
     return extract_esp(input)
 
@@ -248,7 +257,9 @@ def esp_monitor_gdb(target: Target, input: bytes) -> None:
         mutation.write(input)
 
     command = build_command(target)
+    command = command.split()
     command.pop(0)  # remove the name of the program
+
 
     cmd = ""
     for arg in command:
@@ -289,13 +300,15 @@ end
     with open("esp_monitor.gdb", "w") as script:
         script.write(gdb_script)
 
+    #does not work in this particulat r setting, ptrace causes a problem when gdb tries to attach to the process
     gdb = subprocess.Popen(
         ["gdb", "-q", "-x", "esp_monitor.gdb", target.path],
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    gdb.communicate(input=b"quit\n")
+    
+    gdb.communicate(input=b"quit\n")    
 
     remove_if_exists("mutation")
     remove_if_exists("esp_monitor.gdb")
@@ -322,4 +335,7 @@ def extract_esp(input: bytes) -> int:
 
     remove_if_exists("esp.log")
 
+    # if extracted_esp == 0:
+    #     extracted_esp = int('0xffffd53c', 16)
+    
     return extracted_esp

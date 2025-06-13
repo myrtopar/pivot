@@ -169,6 +169,7 @@ def valid_stack_addr(reg: int, stack_top: int, stack_bottom: int) -> bool:
 
 def cleanup(exit_code: int):
 
+    remove_if_exists('esp.log')
     remove_if_exists('mutation')
     remove_if_exists('strace.log')
     sys.exit(exit_code)

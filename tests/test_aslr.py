@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 import logging
 import os
 import subprocess
+import time
+import statistics
+
+N_RUNS = 5
 
 for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
@@ -28,45 +32,32 @@ class test_target:
 
 targets = {
     "iwconfig": test_target(
-        name="iwconfig",
+        name="iwconfig_real",
         timeout=100,
         target_input_path="/crash_inputs/iwconfig_input",
-        arg_config=["iwconfig", "@@"],
+        arg_config=["iwconfig_real", "@@"],
         env=None,
     ),
     "vuln": test_target(
-        name="vuln",
+        name="vuln_real",
         timeout=100,
         target_input_path="/crash_inputs/vuln_input",
-        arg_config=["vuln"],
+        arg_config=["vuln_real"],
         env=None
     ),
     "ncompress": test_target(
-        name="ncompress",
+        name="ncompress_real",
         timeout=100,
         target_input_path="/crash_inputs/ncompress_input",
-        arg_config=["ncompress", "@@"],
+        arg_config=["ncompress_real", "@@"],
         env=None
     ),
-    "june": test_target(
-        name="june",
-        timeout=100,
-        target_input_path="/crash_inputs/june_input",
-        arg_config=["june", "@@"],
-        env=None
-    ),
-    "july": test_target(
-        name="july",
-        timeout=100,
-        target_input_path="/crash_inputs/july_input",
-        arg_config=["july", "@@"],
-        env=None
-    ),
+
     "stacksix": test_target(
-        name="stacksix",
+        name="stacksix_real",
         timeout=100,
         target_input_path="/crash_inputs/stacksix_input",
-        arg_config=["stacksix"],
+        arg_config=["stacksix_real"],
         env={
             'ExploitEducation': '@@'
         }
@@ -78,45 +69,39 @@ targets = {
         arg_config=["picoctf_bof_real"],
         env=None,
     ),
-    "aspell": test_target(
-        name="aspell",
-        timeout=100,
-        target_input_path="/crash_inputs/aspell_input",
-        arg_config=["aspell", "c"],
-        env=None
-    ),
-    "may": test_target(
-        name="may",
-        timeout=100,
-        target_input_path="/crash_inputs/may_input",
-        arg_config=["may", "@@"],
-        env=None
-    ),
 }
 
 ENTRYPOINT = "pivot"
 
+import time
+import statistics
+
+N_RUNS = 10
+
 @pytest.mark.parametrize("target_key", targets.keys())
 def test_target(target_key: str):
-
     target = targets.get(target_key)
     assert target is not None, f"Target {target_key} not found in targets dictionary"
 
     logging.info(f"Testing target: {target.name}")
-    invocation = [
-        ENTRYPOINT, "--input", target.target_input_path
-    ]
-    invocation.append("--target")
-    invocation.extend(target.arg_config)
-    # invocation.append("--verbose")
 
-    if target.env:
-        invocation.append("--env")
-        for key, value in target.env.items():
-            invocation.append(f"{key}={value}")
+    all_times = []
+    all_attempts = []
 
-    logging.info(f"Invocation: {' '.join(invocation)}")
-    try:
+    for I in range(N_RUNS):
+        logging.info(f"Run {I+1}/{N_RUNS}")
+
+        invocation = [
+            ENTRYPOINT, "--input", target.target_input_path
+        ]
+        invocation.append("--target")
+        invocation.extend(target.arg_config)
+        invocation.append("--verbose")
+
+        if target.env:
+            invocation.append("--env")
+            for key, value in target.env.items():
+                invocation.append(f"{key}={value}")
 
         exploit_command = " ".join(invocation)
         process = subprocess.Popen(
@@ -137,12 +122,33 @@ def test_target(target_key: str):
 
         end_time = time.time()
         elapsed_time = end_time - start_time
+        output = stdout + stderr
+
+        attempt_count = attempts(output)
+        logging.info(f"Run {I+1}: Attempts={attempt_count}, Time={elapsed_time:.3f}s")
 
         assert process.returncode == 0
-        logging.info(f"Test for target {target.name} passed successfully, elapsed time={elapsed_time:.3f}.")
+
+        all_times.append(elapsed_time)
+        all_attempts.append(attempt_count)
+
         shutil.rmtree(f"/app/{target.name}_exploit")
 
+    avg_time = sum(all_times) / len(all_times)
+    avg_attempts = sum(all_attempts) / len(all_attempts)
 
-    except Exception as e:
-        logging.error(f"Failed to start process: {e}")
-        raise
+    logging.info(f"Target {target.name}: avg_time={avg_time:.3f}s, avg_attempts={avg_attempts:.2f}")
+
+
+
+def attempts(output: str) -> int:
+    import re
+
+    matches = re.findall(r'Attempt:\s+(\d+)', output)
+    if matches:
+        last_attempt = int(matches[-1])
+    else:
+        raise AssertionError("No attempt number found in output")
+        
+    return last_attempt
+

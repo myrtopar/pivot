@@ -41,7 +41,6 @@ RUN chmod +x /entrypoint.sh
 RUN mkdir -p /mnt/binaries
 
 #copying binaries / benchmarks
-
 COPY --from=myrtopar/june:latest /mnt/bin/june_real /mnt/binaries/june_real
 COPY --from=myrtopar/june:latest /mnt/bin/june_wrapper /mnt/binaries/june
 COPY --from=myrtopar/june:latest /mnt/bin/junealt_real /mnt/binaries/junealt_real
@@ -58,16 +57,18 @@ COPY --from=myrtopar/ncompress:latest /mnt/bin/ncompress_real /mnt/binaries/ncom
 COPY --from=myrtopar/ncompress:latest /mnt/bin/ncompress /mnt/binaries/ncompress
 COPY --from=myrtopar/stacksix:latest /mnt/bin/stacksix_real /mnt/binaries/stacksix_real
 COPY --from=myrtopar/stacksix:latest /mnt/bin/stacksix /mnt/binaries/stacksix
-COPY --from=myrtopar/picoctf_bof:latest /mnt/bin/picoctf_real /mnt/binaries/picoctf_real
-COPY --from=myrtopar/picoctf_bof:latest /mnt/bin/picoctf /mnt/binaries/picoctf
-
-
-
+COPY --from=myrtopar/picoctf_bof:latest /mnt/bin/picoctf_real /mnt/binaries/picoctf_bof_real
+COPY --from=myrtopar/picoctf_bof:latest /mnt/bin/picoctf /mnt/binaries/picoctf_bof
+COPY --from=myrtopar/dupescan:latest /mnt/bin/dupescan_real /mnt/binaries/dupescan_real
+COPY --from=myrtopar/dupescan:latest /mnt/bin/dupescan /mnt/binaries/dupescan
+COPY --from=myrtopar/may:latest /mnt/bin/may_real /mnt/binaries/may_real
+COPY --from=myrtopar/may:latest /mnt/bin/may /mnt/binaries/may
 
 RUN chmod +x /mnt/binaries/*
 
-#copying crash inputs
 RUN mkdir -p /crash_inputs
+
+#copying crash inputs
 COPY --from=myrtopar/june:latest /crash_inputs/june_input /crash_inputs/june_input
 COPY --from=myrtopar/june:latest /crash_inputs/june_alt_input /crash_inputs/junealt_input
 COPY --from=myrtopar/july:latest /crash_inputs/july_input /crash_inputs/july_input
@@ -76,7 +77,9 @@ COPY --from=myrtopar/aspell:latest /crash_inputs/aspell_input /crash_inputs/aspe
 COPY --from=myrtopar/iwconfig:latest /crash_inputs/iwconfig_input /crash_inputs/iwconfig_input
 COPY --from=myrtopar/ncompress:latest /crash_inputs/ncompress_input /crash_inputs/ncompress_input
 COPY --from=myrtopar/stacksix:latest /crash_inputs/stacksix_input /crash_inputs/stacksix_input
-COPY --from=myrtopar/picoctf_bof:latest /crash_inputs/picoctf_input /crash_inputs/picoctf_input
+COPY --from=myrtopar/picoctf_bof:latest /crash_inputs/picoctf_input /crash_inputs/picoctf_bof_input
+COPY --from=myrtopar/dupescan:latest /crash_inputs/dupescan_input /crash_inputs/dupescan_input
+COPY --from=myrtopar/may:latest /crash_inputs/may_input /crash_inputs/may_input
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]

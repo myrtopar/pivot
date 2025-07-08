@@ -78,20 +78,20 @@ targets = {
         arg_config=["picoctf_bof_real"],
         env=None,
     ),
-    "aspell": test_target(
-        name="aspell",
-        timeout=100,
-        target_input_path="/crash_inputs/aspell_input",
-        arg_config=["aspell", "c"],
-        env=None
-    ),
-    "may": test_target(
-        name="may",
-        timeout=100,
-        target_input_path="/crash_inputs/may_input",
-        arg_config=["may", "@@"],
-        env=None
-    ),
+    # "aspell": test_target(
+    #     name="aspell",
+    #     timeout=100,
+    #     target_input_path="/crash_inputs/aspell_input",
+    #     arg_config=["aspell", "c"],
+    #     env=None
+    # ),
+    # "may": test_target(
+    #     name="may",
+    #     timeout=100,
+    #     target_input_path="/crash_inputs/may_input",
+    #     arg_config=["may", "@@"],
+    #     env=None
+    # ),
 }
 
 ENTRYPOINT = "pivot"

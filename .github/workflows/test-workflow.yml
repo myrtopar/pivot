@@ -22,7 +22,7 @@ jobs:
           docker run --rm --privileged \
           -v ${{ github.workspace }}/:/app/ \
           ghcr.io/myrtopar/pivot:0.1 \
-          pytest tests/test_explorer.py --junitxml=test-results.xml
+          pytest tests/test_internal.py --junitxml=test-results.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

@@ -16,6 +16,11 @@ jobs:
         uses: actions/checkout@v4
 
       - run: |
+          echo "CPU Info:" && lscpu
+          echo "Memory Info:" && free -h
+          echo "Disk Info:" && df -h
+
+      - run: |
           docker pull ghcr.io/myrtopar/pivot:0.1
 
       - run: |
